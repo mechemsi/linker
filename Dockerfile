@@ -84,11 +84,11 @@ RUN set -eux; \
 	composer install --no-cache --prefer-dist --no-dev --no-autoloader --no-scripts --no-progress
 
 # copy sources
-COPY --link --exclude=frankenphp/ . ./
+COPY --link . ./
+RUN rm -rf frankenphp/
 
-RUN set -eux; \
-	mkdir -p var/cache var/log var/share; \
-	composer dump-autoload --classmap-authoritative --no-dev; \
-	composer dump-env prod; \
-	composer run-script --no-dev post-install-cmd; \
-	chmod +x bin/console; sync;
+RUN mkdir -p var/cache var/log var/share
+RUN composer dump-autoload --classmap-authoritative --no-dev
+RUN composer dump-env prod
+RUN composer run-script --no-dev post-install-cmd
+RUN chmod +x bin/console
