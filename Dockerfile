@@ -89,5 +89,4 @@ RUN rm -rf frankenphp/
 
 RUN mkdir -p var/cache var/log var/share
 RUN composer dump-autoload --classmap-authoritative --no-dev
-RUN composer run-script --no-dev post-install-cmd
 RUN chmod +x bin/console
