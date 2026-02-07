@@ -14,6 +14,9 @@ indent_size = 4
 [**/{Dockerfile,Caddyfile,*.sh}]
 indent_style = tab
 
+[Makefile]
+indent_style = tab
+
 [{compose.*yaml,.github/**/*.yaml}]
 indent_size = 2
 

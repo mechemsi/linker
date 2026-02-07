@@ -1,6 +1,7 @@
 ---
 services:
   php:
+    image: linker-php
     build:
       context: .
       target: frankenphp_prod

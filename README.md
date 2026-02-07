@@ -2,7 +2,7 @@
 
 URL-based notification routing service. Hit an endpoint with query parameters, and Linker formats a message and sends it to one or more channels (Slack, Telegram, Discord, SMS, Email).
 
-```
+```text
 GET /notify/server-alert?server=web1&status=down&message=disk+full
 ```
 
@@ -12,7 +12,7 @@ Sends `[down] Server web1: disk full` to Slack and Telegram simultaneously.
 
 Each notification endpoint is defined by a YAML file in `config/links/`. The filename becomes the URL slug. No code changes needed to add new endpoints.
 
-```
+```text
 HTTP request → NotifyController → LinkConfigLoader (reads YAML)
                                 → MessageBuilder (validates params, formats message)
                                 → LinkNotificationService (dispatches to channels)
@@ -20,13 +20,13 @@ HTTP request → NotifyController → LinkConfigLoader (reads YAML)
 
 ### Supported Transports
 
-| Transport | Provider | Config |
-|-----------|----------|--------|
-| `slack` | Slack API | `SLACK_DSN` |
-| `telegram` | Telegram Bot API | `TELEGRAM_DSN` |
-| `discord` | Discord Webhooks | `DISCORD_DSN` |
-| `sms` | Twilio | `TWILIO_DSN` + `to` option |
-| `email` | SMTP / any Symfony mailer | `MAILER_DSN` + `to`/`subject` options |
+| Transport    | Provider                  | Config                              |
+| ------------ | ------------------------- | ----------------------------------- |
+| `slack`      | Slack API                 | `SLACK_DSN`                         |
+| `telegram`   | Telegram Bot API          | `TELEGRAM_DSN`                      |
+| `discord`    | Discord Webhooks          | `DISCORD_DSN`                       |
+| `sms`        | Twilio                    | `TWILIO_DSN` + `to` option          |
+| `email`      | SMTP / any Symfony mailer | `MAILER_DSN` + `to`/`subject` options |
 
 ## Requirements
 
@@ -173,7 +173,7 @@ make fix             # Auto-fix code style
 
 ### Project Structure
 
-```
+```text
 config/links/            # Link YAML definitions (one file per endpoint)
 src/
   Controller/            # HTTP layer
