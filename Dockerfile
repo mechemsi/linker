@@ -90,3 +90,17 @@ RUN rm -rf frankenphp/
 RUN mkdir -p var/cache var/log var/share
 RUN composer dump-autoload --classmap-authoritative --no-dev
 RUN chmod +x bin/console
+
+# Generate .env with safe defaults for container bootstrap
+# Real values come from Docker env vars at runtime
+RUN printf '%s\n' \
+	'APP_ENV=prod' \
+	'APP_SECRET=change-me-in-production' \
+	'DATABASE_URL=mysql://app:app@database:3306/app?serverVersion=8.0&charset=utf8mb4' \
+	'SLACK_DSN=null://null' \
+	'SLACK_WEBHOOK_URL=' \
+	'TELEGRAM_DSN=null://null' \
+	'DISCORD_DSN=null://null' \
+	'TWILIO_DSN=null://null' \
+	'MAILER_DSN=null://null' \
+	> .env
