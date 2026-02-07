@@ -1,51 +1,220 @@
-# Symfony Docker
+# Linker
 
-A [Docker](https://www.docker.com/)-based installer and runtime for the [Symfony](https://symfony.com) web framework,
-with [FrankenPHP](https://frankenphp.dev) and [Caddy](https://caddyserver.com/) inside!
+URL-based notification routing service. Hit an endpoint with query parameters, and Linker formats a message and sends it to one or more channels (Slack, Telegram, Discord, SMS, Email).
 
-![CI](https://github.com/dunglas/symfony-docker/workflows/CI/badge.svg)
+```
+GET /notify/server-alert?server=web1&status=down&message=disk+full
+```
+
+Sends `[down] Server web1: disk full` to Slack and Telegram simultaneously.
+
+## How It Works
+
+Each notification endpoint is defined by a YAML file in `config/links/`. The filename becomes the URL slug. No code changes needed to add new endpoints.
+
+```
+HTTP request → NotifyController → LinkConfigLoader (reads YAML)
+                                → MessageBuilder (validates params, formats message)
+                                → LinkNotificationService (dispatches to channels)
+```
+
+### Supported Transports
+
+| Transport | Provider | Config |
+|-----------|----------|--------|
+| `slack` | Slack API | `SLACK_DSN` |
+| `telegram` | Telegram Bot API | `TELEGRAM_DSN` |
+| `discord` | Discord Webhooks | `DISCORD_DSN` |
+| `sms` | Twilio | `TWILIO_DSN` + `to` option |
+| `email` | SMTP / any Symfony mailer | `MAILER_DSN` + `to`/`subject` options |
+
+## Requirements
+
+- [Docker Compose](https://docs.docker.com/compose/install/) v2.10+
 
 ## Getting Started
 
-1. If not already done, [install Docker Compose](https://docs.docker.com/compose/install/) (v2.10+)
-2. Run `docker compose build --pull --no-cache` to build fresh images
-3. Run `docker compose up --wait` to set up and start a fresh Symfony project
-4. Open `https://localhost` in your favorite web browser and [accept the auto-generated TLS certificate](https://stackoverflow.com/a/15076602/1352334)
-5. Run `docker compose down --remove-orphans` to stop the Docker containers.
+```bash
+# Build and start containers
+make build
+make up
 
-## Features
+# Verify the route is registered
+make routes
+```
 
-- Production, development and CI ready
-- Just 1 service by default
-- Blazing-fast performance thanks to [the worker mode of FrankenPHP](https://frankenphp.dev/docs/worker/)
-- [Installation of extra Docker Compose services](docs/extra-services.md) with Symfony Flex
-- Automatic HTTPS (in dev and prod)
-- HTTP/3 and [Early Hints](https://symfony.com/blog/new-in-symfony-6-3-early-hints) support
-- Real-time messaging thanks to a built-in [Mercure hub](https://symfony.com/doc/current/mercure.html)
-- [Vulcain](https://vulcain.rocks) support
-- Native [XDebug](docs/xdebug.md) integration
-- Super-readable configuration
+If port 80 is already in use:
 
-**Enjoy!**
+```bash
+HTTP_PORT=8082 HTTPS_PORT=8443 make up
+```
 
-## Docs
+## Configuration
 
-1. [Options available](docs/options.md)
-2. [Using Symfony Docker with an existing project](docs/existing-project.md)
-3. [Support for extra services](docs/extra-services.md)
-4. [Deploying in production](docs/production.md)
-5. [Debugging with Xdebug](docs/xdebug.md)
-6. [TLS Certificates](docs/tls.md)
-7. [Using MySQL instead of PostgreSQL](docs/mysql.md)
-8. [Using Alpine Linux instead of Debian](docs/alpine.md)
-9. [Using a Makefile](docs/makefile.md)
-10. [Updating the template](docs/updating.md)
-11. [Troubleshooting](docs/troubleshooting.md)
+### Transport DSNs
+
+Copy `.env` to `.env.local` and set real transport credentials:
+
+```env
+SLACK_DSN=slack://xoxb-your-token@default?channel=alerts
+TELEGRAM_DSN=telegram://bot-token@default?channel=123456789
+DISCORD_DSN=discord://token@default?webhook_id=123456
+TWILIO_DSN=twilio://SID:TOKEN@default?from=+1234567890
+MAILER_DSN=smtp://user:pass@smtp.example.com:587
+```
+
+### Link Definitions
+
+Each file in `config/links/` defines one notification endpoint:
+
+```yaml
+# config/links/server-alert.yaml
+# Accessible at: GET /notify/server-alert?server=web1&status=down
+
+parameters:
+    server:
+        required: true
+        type: string
+    status:
+        required: true
+        type: string
+    message:
+        required: false
+        type: string
+        default: 'No details provided'
+
+message_template: '[{status}] Server {server}: {message}'
+
+channels:
+    - transport: slack
+    - transport: telegram
+```
+
+Adding a new endpoint = adding a new YAML file. No code changes, no deployment needed beyond dropping the file in.
+
+### Link Definition Reference
+
+```yaml
+parameters:
+    <name>:
+        required: true|false       # is this query param mandatory?
+        type: string               # param type
+        default: 'fallback value'  # used when required: false and param not provided
+
+message_template: 'Text with {name} placeholders'
+
+channels:
+    - transport: slack|telegram|discord|sms|email
+      options:                     # required for sms and email
+          to: 'recipient'
+          subject: 'Subject with {name} placeholders'  # email only
+```
+
+## Usage Examples
+
+```bash
+# Server alert → Slack + Telegram
+curl "http://localhost/notify/server-alert?server=web1&status=down&message=disk+full"
+
+# Deploy notification → Discord + SMS + Email
+curl "http://localhost/notify/deploy-notify?app=myapp&version=2.0"
+
+# Optional params use defaults (environment defaults to "production")
+curl "http://localhost/notify/deploy-notify?app=myapp&version=2.0&environment=staging"
+
+# POST works too
+curl -X POST "http://localhost/notify/server-alert?server=db1&status=up"
+```
+
+### Response Format
+
+**Success (200)**:
+```json
+{
+    "status": "ok",
+    "link": "server-alert",
+    "channels_notified": ["slack", "telegram"]
+}
+```
+
+**Link not found (404)**:
+```json
+{
+    "status": "error",
+    "message": "Link \"unknown\" not found."
+}
+```
+
+**Missing parameters (400)**:
+```json
+{
+    "status": "error",
+    "message": "Invalid parameters: Missing required parameter \"server\".",
+    "errors": ["Missing required parameter \"server\"."]
+}
+```
+
+## Development
+
+### Makefile Targets
+
+```bash
+make up              # Start containers
+make down            # Stop containers
+make sh              # Shell into PHP container
+
+make test            # PHPUnit tests
+make codecept        # Codeception tests
+make test-all        # Both
+
+make qa              # PHPStan + PHPCS
+make fix             # Auto-fix code style
+```
+
+### Project Structure
+
+```
+config/links/            # Link YAML definitions (one file per endpoint)
+src/
+  Controller/            # HTTP layer
+  Dto/                   # Readonly value objects (LinkDefinition, etc.)
+  Exception/             # Domain exceptions
+  Service/
+    LinkConfigLoader     # Parses YAML files into DTOs
+    MessageBuilder       # Validates params, interpolates templates
+    LinkNotificationService  # Orchestrates dispatch to transports
+tests/
+  Unit/Service/          # PHPUnit tests for each service
+  Functional/            # Codeception tests for HTTP endpoints
+```
+
+### Running Tests
+
+All commands run inside Docker:
+
+```bash
+make test-all        # Run everything
+make test            # PHPUnit only
+make codecept        # Codeception only
+```
+
+### Code Quality
+
+```bash
+make fix             # Auto-fix style (PHPCBF + PHP-CS-Fixer)
+make qa              # Static analysis (PHPStan level 6 + PHPCS PSR-12)
+```
+
+## Tech Stack
+
+- PHP 8.4 / Symfony 8
+- FrankenPHP + Caddy
+- MySQL 8
+- Symfony Notifier (Slack, Telegram, Discord, Twilio)
+- Symfony Mailer
+- PHPUnit 12 + Codeception 5
+- PHPStan + PHPCS + PHP-CS-Fixer
 
 ## License
 
-Symfony Docker is available under the MIT License.
-
-## Credits
-
-Created by [Kévin Dunglas](https://dunglas.dev), co-maintained by [Maxime Helias](https://twitter.com/maxhelias) and sponsored by [Les-Tilleuls.coop](https://les-tilleuls.coop).
+MIT

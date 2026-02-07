@@ -12,6 +12,7 @@ use Symfony\Component\Notifier\ChatterInterface;
 use Symfony\Component\Notifier\Message\ChatMessage;
 use Symfony\Component\Notifier\Message\SmsMessage;
 use Symfony\Component\Notifier\TexterInterface;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class LinkNotificationService
 {
@@ -21,6 +22,8 @@ class LinkNotificationService
         private readonly ChatterInterface $chatter,
         private readonly TexterInterface $texter,
         private readonly MailerInterface $mailer,
+        private readonly HttpClientInterface $httpClient,
+        private readonly string $slackWebhookUrl,
     ) {
     }
 
@@ -57,11 +60,23 @@ class LinkNotificationService
         array $resolvedParams,
     ): void {
         match ($channel->transport) {
+            'slack-webhook' => $this->sendSlackWebhook($message),
             'slack', 'telegram', 'discord' => $this->sendChat($channel, $message),
             'sms' => $this->sendSms($channel, $message),
             'email' => $this->sendEmail($channel, $message, $link, $resolvedParams),
             default => throw new \RuntimeException(\sprintf('Unsupported transport "%s".', $channel->transport)),
         };
+    }
+
+    private function sendSlackWebhook(string $message): void
+    {
+        $response = $this->httpClient->request('POST', $this->slackWebhookUrl, [
+            'json' => ['text' => $message],
+        ]);
+
+        if (200 !== $response->getStatusCode()) {
+            throw new \RuntimeException(\sprintf('Slack webhook failed with status %d: %s', $response->getStatusCode(), $response->getContent(false)));
+        }
     }
 
     private function sendChat(ChannelDefinition $channel, string $message): void
@@ -91,7 +106,6 @@ class LinkNotificationService
         $to = $channel->options['to'] ?? throw new \RuntimeException('Email channel requires "to" option.');
         $subject = $channel->options['subject'] ?? $message;
 
-        // Interpolate placeholders in subject
         foreach ($resolvedParams as $key => $value) {
             $subject = str_replace('{' . $key . '}', $value, $subject);
         }

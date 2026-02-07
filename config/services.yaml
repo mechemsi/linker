@@ -22,3 +22,7 @@ services:
     App\Service\LinkConfigLoader:
         arguments:
             $linksDirectory: '%kernel.project_dir%/config/links'
+
+    App\Service\LinkNotificationService:
+        arguments:
+            $slackWebhookUrl: '%env(SLACK_WEBHOOK_URL)%'

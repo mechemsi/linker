@@ -73,4 +73,18 @@ class NotifyControllerCest
             'status' => 'ok',
         ]);
     }
+
+    public function slackWebhookLinkReturns200(FunctionalTester $I): void
+    {
+        $I->sendGet('/notify/test-slack', [
+            'message' => 'Hello from test',
+        ]);
+
+        $I->seeResponseCodeIs(200);
+        $I->seeResponseIsJson();
+        $I->seeResponseContainsJson([
+            'status' => 'ok',
+            'link' => 'test-slack',
+        ]);
+    }
 }

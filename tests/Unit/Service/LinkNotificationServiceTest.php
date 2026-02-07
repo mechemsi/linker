@@ -19,6 +19,8 @@ use Symfony\Component\Notifier\ChatterInterface;
 use Symfony\Component\Notifier\Message\ChatMessage;
 use Symfony\Component\Notifier\Message\SmsMessage;
 use Symfony\Component\Notifier\TexterInterface;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
+use Symfony\Contracts\HttpClient\ResponseInterface;
 
 class LinkNotificationServiceTest extends TestCase
 {
@@ -47,6 +49,8 @@ class LinkNotificationServiceTest extends TestCase
             $chatter,
             $this->createStub(TexterInterface::class),
             $this->createStub(MailerInterface::class),
+            $this->createStub(HttpClientInterface::class),
+            'https://hooks.slack.com/services/test/test/test',
         );
 
         $result = $service->send('test', ['server' => 'web1']);
@@ -79,6 +83,8 @@ class LinkNotificationServiceTest extends TestCase
             $this->createStub(ChatterInterface::class),
             $texter,
             $this->createStub(MailerInterface::class),
+            $this->createStub(HttpClientInterface::class),
+            'https://hooks.slack.com/services/test/test/test',
         );
 
         $result = $service->send('test', ['app' => 'myapp']);
@@ -117,11 +123,54 @@ class LinkNotificationServiceTest extends TestCase
             $this->createStub(ChatterInterface::class),
             $this->createStub(TexterInterface::class),
             $mailer,
+            $this->createStub(HttpClientInterface::class),
+            'https://hooks.slack.com/services/test/test/test',
         );
 
         $result = $service->send('test', ['app' => 'myapp']);
 
         $this->assertSame(['email'], $result);
+    }
+
+    #[Test]
+    public function sendDispatchesSlackWebhook(): void
+    {
+        $link = new LinkDefinition(
+            name: 'test-slack',
+            messageTemplate: '{message}',
+            parameters: [new ParameterDefinition('message', true, 'string')],
+            channels: [new ChannelDefinition('slack-webhook')],
+        );
+
+        $configLoader = $this->createStub(LinkConfigLoader::class);
+        $configLoader->method('getLink')->willReturn($link);
+
+        $response = $this->createStub(ResponseInterface::class);
+        $response->method('getStatusCode')->willReturn(200);
+
+        $httpClient = $this->createMock(HttpClientInterface::class);
+        $httpClient->expects($this->once())
+            ->method('request')
+            ->with(
+                'POST',
+                'https://hooks.slack.com/services/test/test/test',
+                $this->callback(static fn (array $options) => ['text' => 'Hello from Linker'] === ($options['json'] ?? null)),
+            )
+            ->willReturn($response);
+
+        $service = new LinkNotificationService(
+            $configLoader,
+            new MessageBuilder(),
+            $this->createStub(ChatterInterface::class),
+            $this->createStub(TexterInterface::class),
+            $this->createStub(MailerInterface::class),
+            $httpClient,
+            'https://hooks.slack.com/services/test/test/test',
+        );
+
+        $result = $service->send('test-slack', ['message' => 'Hello from Linker']);
+
+        $this->assertSame(['slack-webhook'], $result);
     }
 
     #[Test]
@@ -149,6 +198,8 @@ class LinkNotificationServiceTest extends TestCase
             $chatter,
             $this->createStub(TexterInterface::class),
             $this->createStub(MailerInterface::class),
+            $this->createStub(HttpClientInterface::class),
+            'https://hooks.slack.com/services/test/test/test',
         );
 
         $result = $service->send('test', ['msg' => 'hello']);
@@ -169,6 +220,8 @@ class LinkNotificationServiceTest extends TestCase
             $this->createStub(ChatterInterface::class),
             $this->createStub(TexterInterface::class),
             $this->createStub(MailerInterface::class),
+            $this->createStub(HttpClientInterface::class),
+            'https://hooks.slack.com/services/test/test/test',
         );
 
         $this->expectException(LinkNotFoundException::class);

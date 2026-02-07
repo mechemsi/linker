@@ -1,0 +1,7 @@
+parameters:
+    message:
+        required: true
+        type: string
+message_template: '{message}'
+channels:
+    - transport: slack-webhook
