@@ -1,0 +1,116 @@
+{
+    "name": "symfony/skeleton",
+    "type": "project",
+    "license": "MIT",
+    "description": "A minimal Symfony project recommended to create bare bones applications",
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "require": {
+        "php": ">=8.4.17",
+        "ext-ctype": "*",
+        "ext-iconv": "*",
+        "doctrine/doctrine-bundle": "^3.2.2",
+        "doctrine/doctrine-migrations-bundle": "^4.0",
+        "doctrine/orm": "^3.6.2",
+        "symfony/console": "8.0.*",
+        "symfony/discord-notifier": "8.0.*",
+        "symfony/dotenv": "8.0.*",
+        "symfony/flex": "^2.10",
+        "symfony/framework-bundle": "8.0.*",
+        "symfony/mailer": "8.0.*",
+        "symfony/notifier": "8.0.*",
+        "symfony/runtime": "8.0.*",
+        "symfony/slack-notifier": "8.0.*",
+        "symfony/telegram-notifier": "8.0.*",
+        "symfony/twilio-notifier": "8.0.*",
+        "symfony/yaml": "8.0.*"
+    },
+    "config": {
+        "allow-plugins": {
+            "php-http/discovery": true,
+            "symfony/flex": true,
+            "symfony/runtime": true
+        },
+        "bump-after-update": true,
+        "sort-packages": true
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "App\\Tests\\": "tests/"
+        }
+    },
+    "replace": {
+        "symfony/polyfill-ctype": "*",
+        "symfony/polyfill-iconv": "*",
+        "symfony/polyfill-php72": "*",
+        "symfony/polyfill-php73": "*",
+        "symfony/polyfill-php74": "*",
+        "symfony/polyfill-php80": "*",
+        "symfony/polyfill-php81": "*",
+        "symfony/polyfill-php82": "*",
+        "symfony/polyfill-php83": "*",
+        "symfony/polyfill-php84": "*"
+    },
+    "scripts": {
+        "auto-scripts": {
+            "cache:clear": "symfony-cmd",
+            "assets:install %PUBLIC_DIR%": "symfony-cmd"
+        },
+        "post-install-cmd": [
+            "@auto-scripts"
+        ],
+        "post-update-cmd": [
+            "@auto-scripts"
+        ],
+        "test": "bin/phpunit",
+        "test:coverage": "XDEBUG_MODE=coverage bin/phpunit --coverage-text",
+        "codecept": "vendor/bin/codecept run",
+        "codecept:functional": "vendor/bin/codecept run Functional",
+        "codecept:unit": "vendor/bin/codecept run Unit",
+        "phpstan": "php -d memory_limit=512M vendor/bin/phpstan analyse",
+        "phpcs": "vendor/bin/phpcs",
+        "phpcbf": "vendor/bin/phpcbf",
+        "cs-fix": "vendor/bin/php-cs-fixer fix",
+        "cs-check": "vendor/bin/php-cs-fixer fix --dry-run --diff",
+        "qa": [
+            "@phpstan",
+            "@phpcs"
+        ],
+        "test:all": [
+            "@test",
+            "@codecept"
+        ]
+    },
+    "conflict": {
+        "symfony/symfony": "*"
+    },
+    "extra": {
+        "symfony": {
+            "allow-contrib": false,
+            "require": "8.0.*",
+            "docker": true
+        }
+    },
+    "require-dev": {
+        "codeception/codeception": "^5.3.4",
+        "codeception/module-asserts": ">=3.3",
+        "codeception/module-db": "^3.2.2",
+        "codeception/module-doctrine": "^3.3",
+        "codeception/module-phpbrowser": ">=4",
+        "codeception/module-rest": "^3.4.3",
+        "codeception/module-symfony": "^3.8",
+        "friendsofphp/php-cs-fixer": "^3.93",
+        "phpstan/phpstan": "^2.1",
+        "phpstan/phpstan-doctrine": "^2.0",
+        "phpstan/phpstan-symfony": "^2.0",
+        "phpunit/phpunit": "^12.5.8",
+        "squizlabs/php_codesniffer": "^4.0",
+        "symfony/browser-kit": "8.0.*",
+        "symfony/css-selector": "8.0.*"
+    }
+}

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ruleset name="Project Coding Standard">
+    <description>Symfony coding standard with PSR-12</description>
+
+    <arg name="colors"/>
+    <arg value="sp"/>
+
+    <file>src</file>
+    <file>tests</file>
+
+    <exclude-pattern>var/*</exclude-pattern>
+    <exclude-pattern>vendor/*</exclude-pattern>
+    <exclude-pattern>tests/_output/*</exclude-pattern>
+    <exclude-pattern>tests/Support/_generated/*</exclude-pattern>
+
+    <rule ref="PSR12"/>
+</ruleset>

@@ -1,0 +1,19 @@
+# Codeception Test Suite Configuration
+#
+# Suite for functional tests
+# Emulate web requests and make application process them
+
+actor: FunctionalTester
+modules:
+    enabled:
+        - Symfony:
+            app_path: 'src'
+            environment: 'test'
+        - Doctrine:
+            depends: Symfony
+            cleanup: true
+        - REST:
+            depends: Symfony
+            url: /
+        - \App\Tests\Support\Helper\Functional
+step_decorators: ~

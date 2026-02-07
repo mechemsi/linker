@@ -1,0 +1,15 @@
+parameters:
+    server:
+        required: true
+        type: string
+    status:
+        required: true
+        type: string
+    message:
+        required: false
+        type: string
+        default: 'No details provided'
+message_template: '[{status}] Server {server}: {message}'
+channels:
+    - transport: slack
+    - transport: telegram
