@@ -109,7 +109,7 @@ RUN printf '%s\n' \
 # CI FrankenPHP image (prod base + dev dependencies for testing)
 FROM frankenphp_prod AS frankenphp_ci
 
-ENV APP_ENV=test
+ENV APP_ENV=dev
 
 # Install dev dependencies on top of prod (--no-scripts avoids cache:clear needing runtime env vars)
 RUN set -eux; \

@@ -5,6 +5,17 @@ services:
     build:
       context: .
       target: frankenphp_ci
+    depends_on:
+      database:
+        condition: service_healthy
     environment:
-      APP_ENV: test
       MERCURE_EXTRA_DIRECTIVES: demo
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:2019/metrics"]
+      start_period: 120s
+      interval: 10s
+      timeout: 5s
+      retries: 10
+  database:
+    volumes:
+      - ./docker/mysql/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql:ro
