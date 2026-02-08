@@ -111,7 +111,7 @@ FROM frankenphp_prod AS frankenphp_ci
 
 ENV APP_ENV=test
 
-# Install dev dependencies on top of prod
+# Install dev dependencies on top of prod (--no-scripts avoids cache:clear needing runtime env vars)
 RUN set -eux; \
-	composer install --no-cache --prefer-dist --no-progress
+	composer install --no-cache --prefer-dist --no-scripts --no-progress
 RUN composer dump-autoload --classmap-authoritative
