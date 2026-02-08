@@ -19,6 +19,8 @@ jobs:
   tests:
     name: Tests
     runs-on: ubuntu-latest
+    env:
+      COMPOSE_FILE: compose.yaml:compose.ci.yaml
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -34,7 +36,7 @@ jobs:
           source: .
           files: |
             compose.yaml
-            compose.override.yaml
+            compose.ci.yaml
           set: |
             *.cache-from=type=gha,scope=${{github.ref}}
             *.cache-from=type=gha,scope=refs/heads/main

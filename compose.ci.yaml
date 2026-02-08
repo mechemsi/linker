@@ -1,0 +1,9 @@
+---
+# CI environment override — no volume mounts, code + deps baked into image
+services:
+  php:
+    build:
+      context: .
+      target: frankenphp_ci
+    environment:
+      APP_ENV: test

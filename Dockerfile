@@ -105,3 +105,13 @@ RUN printf '%s\n' \
 	'TWILIO_DSN=null://null' \
 	'MAILER_DSN=null://null' \
 	> .env
+
+# CI FrankenPHP image (prod base + dev dependencies for testing)
+FROM frankenphp_prod AS frankenphp_ci
+
+ENV APP_ENV=test
+
+# Install dev dependencies on top of prod
+RUN set -eux; \
+	composer install --no-cache --prefer-dist --no-progress
+RUN composer dump-autoload --classmap-authoritative
