@@ -7,3 +7,4 @@ services:
       target: frankenphp_ci
     environment:
       APP_ENV: test
+      MERCURE_EXTRA_DIRECTIVES: demo
