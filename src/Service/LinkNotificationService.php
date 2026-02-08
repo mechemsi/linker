@@ -75,7 +75,11 @@ class LinkNotificationService
         ]);
 
         if (200 !== $response->getStatusCode()) {
-            throw new \RuntimeException(\sprintf('Slack webhook failed with status %d: %s', $response->getStatusCode(), $response->getContent(false)));
+            throw new \RuntimeException(\sprintf(
+                'Slack webhook failed with status %d: %s',
+                $response->getStatusCode(),
+                $response->getContent(false),
+            ));
         }
     }
 

@@ -154,7 +154,9 @@ class LinkNotificationServiceTest extends TestCase
             ->with(
                 'POST',
                 'https://hooks.slack.com/services/test/test/test',
-                $this->callback(static fn (array $options) => ['text' => 'Hello from Linker'] === ($options['json'] ?? null)),
+                $this->callback(
+                    static fn (array $options) => ['text' => 'Hello from Linker'] === ($options['json'] ?? null),
+                ),
             )
             ->willReturn($response);
 
