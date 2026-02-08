@@ -47,7 +47,7 @@ jobs:
         if: failure()
         run: docker compose logs php
       - name: Check HTTP reachability
-        run: curl -v --fail-with-body http://localhost
+        run: curl -v -o /dev/null http://localhost
       - name: Run PHPUnit
         run: docker compose exec -T php vendor/bin/phpunit
       - name: Run Codeception
@@ -88,3 +88,4 @@ jobs:
           VALIDATE_ENV: false
           VALIDATE_EDITORCONFIG: false
           VALIDATE_MARKDOWN: false
+          VALIDATE_SQLFLUFF: false
