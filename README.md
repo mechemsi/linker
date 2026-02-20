@@ -38,37 +38,126 @@ HTTP request → NotifyController → LinkConfigLoader (reads YAML)
 
 ## Requirements
 
-- [Docker Compose](https://docs.docker.com/compose/install/) v2.10+
+- [Docker](https://docs.docker.com/engine/install/) and [Docker Compose](https://docs.docker.com/compose/install/) v2.10+
+- [Git](https://git-scm.com/)
+- [Make](https://www.gnu.org/software/make/) (pre-installed on most Linux/macOS systems)
 
 ## Getting Started
 
-```bash
-# Build and start containers
-make build
-make up
+### 1. Clone the repository
 
-# Verify the route is registered
-make routes
+```bash
+git clone <repository-url>
+cd linker
 ```
 
-If port 80 is already in use:
+### 2. Configure environment variables
+
+Copy the example environment file and update it with your credentials:
 
 ```bash
-HTTP_PORT=8082 HTTPS_PORT=8443 make up
+cp .env.example .env.local
+```
+
+Edit `.env.local` and set at minimum:
+
+```env
+APP_SECRET=your-random-secret-string
+```
+
+Then configure the transports you plan to use (see [Transport DSNs](#transport-dsns) below). Transports left unconfigured default to `null://null` (messages are silently discarded).
+
+### 3. Build and start
+
+Run the first-time setup, which builds Docker images, starts containers, creates the database, and fixes file permissions:
+
+```bash
+make first-run
+```
+
+This is equivalent to running `make build`, `make up`, `make db-create`, `make db-test-create`, and `make perms` in sequence.
+
+### 4. Verify the installation
+
+```bash
+# Check that containers are running
+make ps
+
+# Verify the notification route is registered
+make routes
+
+# Send a test request (requires a link definition in config/links/)
+curl "http://localhost/notify/server-alert?server=web1&status=down&message=test"
+```
+
+### Subsequent starts
+
+After the initial setup, start and stop the application with:
+
+```bash
+make up        # Start containers
+make down      # Stop and remove containers
+```
+
+If port 80 is already in use, override the published port:
+
+```bash
+HTTP_PORT=8082 make up
 ```
 
 ## Configuration
 
+### Environment Files
+
+Linker uses the Symfony dotenv component. Files are loaded in this order (later files override earlier ones):
+
+| File | Purpose | Committed? |
+| ---- | ------- | ---------- |
+| `.env.example` | Reference template with placeholder values | Yes |
+| `.env.local` | **Your local overrides** — set real credentials here | No |
+| `.env.test` | Test-environment defaults | Yes |
+| `.env.test.local` | Local test overrides | No |
+
+**Never commit secrets to `.env.example`.** Use `.env.local` for real credentials.
+
 ### Transport DSNs
 
-Copy `.env` to `.env.local` and set real transport credentials:
+Configure the transports you need in `.env.local`:
 
 ```env
+# Slack — Bot token + channel
 SLACK_DSN=slack://xoxb-your-token@default?channel=alerts
+
+# Telegram — Bot token + chat ID
 TELEGRAM_DSN=telegram://bot-token@default?channel=123456789
+
+# Discord — Webhook token + ID
 DISCORD_DSN=discord://token@default?webhook_id=123456
+
+# SMS via Twilio — Account SID + Auth Token + sender number
 TWILIO_DSN=twilio://SID:TOKEN@default?from=+1234567890
+
+# Email via SMTP
 MAILER_DSN=smtp://user:pass@smtp.example.com:587
+```
+
+Any transport left as `null://null` will silently discard messages, so you only need to configure the channels you actually use.
+
+### Database
+
+The database is configured automatically via `compose.yaml` environment variables. Default credentials:
+
+| Variable | Default |
+| -------- | ------- |
+| `MYSQL_USER` | `app` |
+| `MYSQL_PASSWORD` | `!ChangeMe!` |
+| `MYSQL_DATABASE` | `app` |
+| `MYSQL_PORT` | `3307` (host) → `3306` (container) |
+
+To override, set these variables before running `make up`:
+
+```bash
+MYSQL_PASSWORD=my-secure-password make up
 ```
 
 ### Link Definitions
