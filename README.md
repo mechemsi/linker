@@ -1,12 +1,20 @@
-# Linker
+# Linker — Notification Routing Service
 
-URL-based notification routing service. Hit an endpoint with query parameters, and Linker formats a message and sends it to one or more channels (Slack, Telegram, Discord, SMS, Email).
+Linker turns HTTP requests into multi-channel notifications. Define endpoints with simple YAML files — no code changes, no redeployment. Each request validates parameters, formats a message from a template, and dispatches it to any combination of Slack, Telegram, Discord, SMS, and Email.
 
 ```text
 GET /notify/server-alert?server=web1&status=down&message=disk+full
+→ [down] Server web1: disk full → Slack + Telegram
 ```
 
-Sends `[down] Server web1: disk full` to Slack and Telegram simultaneously.
+### Features
+
+- **Zero-code endpoints** — drop a YAML file in `config/links/` to create a new notification route
+- **Multi-channel dispatch** — send to Slack, Telegram, Discord, SMS (Twilio), and Email from a single request
+- **Parameter validation** — required/optional query parameters with type checking and defaults
+- **Message templating** — `{placeholder}` interpolation in messages and email subjects
+- **GET and POST support** — trigger notifications via either HTTP method
+- **Structured error responses** — JSON errors for missing links, invalid parameters, and transport failures
 
 ## How It Works
 
