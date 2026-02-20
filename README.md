@@ -253,19 +253,91 @@ curl -X POST "http://localhost/notify/server-alert?server=db1&status=up"
 
 ## Development
 
-### Makefile Targets
+### Daily Workflow
+
+All commands run inside Docker via `make` targets — you never need to install PHP or Composer on your host machine.
 
 ```bash
-make up              # Start containers
-make down            # Stop containers
-make sh              # Shell into PHP container
+make up              # Start containers (HTTP mode on localhost)
+make down            # Stop and remove containers
+make stop            # Stop containers without removing them
+make restart         # Restart containers (down + up)
+make ps              # Show running containers
+```
 
-make test            # PHPUnit tests
-make codecept        # Codeception tests
-make test-all        # Both
+### Running Tests
 
-make qa              # PHPStan + PHPCS
-make fix             # Auto-fix code style
+Run the full test suite after every change:
+
+```bash
+make test-all        # Run everything (PHPUnit + Codeception)
+make test            # PHPUnit unit tests only
+make test-coverage   # PHPUnit with code coverage (requires Xdebug)
+make codecept        # All Codeception tests
+make codecept-functional  # Codeception functional tests only
+make codecept-unit        # Codeception unit tests only
+```
+
+### Code Quality
+
+Always run QA checks before committing:
+
+```bash
+make qa              # Static analysis (PHPStan level 6 + PHPCS PSR-12)
+make fix             # Auto-fix style issues (PHPCBF + PHP-CS-Fixer)
+make phpstan         # PHPStan only
+make phpcs           # PHPCS check only
+make lint            # All linters (PHPCS + PHP-CS-Fixer dry-run)
+```
+
+### Shell Access and Debugging
+
+```bash
+make sh              # Open a shell in the PHP container
+make sh-root         # Open a root shell in the PHP container
+make mysql           # Open MySQL CLI as app user
+make mysql-root      # Open MySQL CLI as root
+make logs            # Follow all container logs
+make logs-php        # Follow PHP container logs only
+make logs-db         # Follow database container logs only
+```
+
+### Dependency Management
+
+```bash
+make install                       # Install dependencies from lock file
+make update                        # Update all dependencies
+make require ARGS="vendor/pkg"     # Add a production dependency
+make require-dev ARGS="vendor/pkg" # Add a dev dependency
+```
+
+### Database Management
+
+```bash
+make db-create       # Create the database (if not exists)
+make db-drop         # Drop the database
+make db-reset        # Drop, recreate, and run all migrations
+make migrate         # Run pending migrations
+make migrate-diff    # Generate a migration from entity changes
+make migrate-status  # Show migration status
+make schema-validate # Validate Doctrine schema against entities
+make db-test-create  # Create the test database
+```
+
+### Symfony Console
+
+```bash
+make sf ARGS="..."   # Run any Symfony console command
+make cc              # Clear Symfony cache
+make routes          # List all registered routes
+make about           # Show Symfony project info
+```
+
+### Code Generation
+
+```bash
+make entity ARGS="EntityName"         # Create a new Doctrine entity
+make controller ARGS="ControllerName" # Create a new controller
 ```
 
 ### Project Structure
@@ -283,23 +355,6 @@ src/
 tests/
   Unit/Service/          # PHPUnit tests for each service
   Functional/            # Codeception tests for HTTP endpoints
-```
-
-### Running Tests
-
-All commands run inside Docker:
-
-```bash
-make test-all        # Run everything
-make test            # PHPUnit only
-make codecept        # Codeception only
-```
-
-### Code Quality
-
-```bash
-make fix             # Auto-fix style (PHPCBF + PHP-CS-Fixer)
-make qa              # Static analysis (PHPStan level 6 + PHPCS PSR-12)
 ```
 
 ## Tech Stack
