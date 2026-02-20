@@ -1,6 +1,6 @@
-# Linker — Notification Routing Service
+# Linker — Config-Driven Notification Router
 
-Linker turns HTTP requests into multi-channel notifications. Define endpoints with simple YAML files — no code changes, no redeployment. Each request validates parameters, formats a message from a template, and dispatches it to any combination of Slack, Telegram, Discord, SMS, and Email.
+Linker is a lightweight Symfony service that routes HTTP requests to multi-channel notifications using plain YAML configuration. Instead of writing code for every alerting integration, you define notification endpoints declaratively — specifying parameters, a message template, and target channels — and Linker handles validation, formatting, and dispatch to Slack, Telegram, Discord, SMS, and Email.
 
 ```text
 GET /notify/server-alert?server=web1&status=down&message=disk+full
@@ -9,12 +9,12 @@ GET /notify/server-alert?server=web1&status=down&message=disk+full
 
 ### Features
 
-- **Zero-code endpoints** — drop a YAML file in `config/links/` to create a new notification route
-- **Multi-channel dispatch** — send to Slack, Telegram, Discord, SMS (Twilio), and Email from a single request
+- **Config-driven endpoints** — drop a YAML file in `config/links/` to create a new notification route; no code changes or redeployment required
+- **Multi-channel dispatch** — fan out a single request to any combination of Slack, Telegram, Discord, SMS (Twilio), and Email
 - **Parameter validation** — required/optional query parameters with type checking and defaults
 - **Message templating** — `{placeholder}` interpolation in messages and email subjects
 - **GET and POST support** — trigger notifications via either HTTP method
-- **Structured error responses** — JSON errors for missing links, invalid parameters, and transport failures
+- **Structured JSON API** — consistent responses for success, missing links, invalid parameters, and transport failures
 
 ## How It Works
 
