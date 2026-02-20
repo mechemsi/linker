@@ -1,6 +1,6 @@
-# Linker — Notification Routing Service
+# Linker — Config-Driven Notification Router
 
-Linker turns HTTP requests into multi-channel notifications. Define endpoints with simple YAML files — no code changes, no redeployment. Each request validates parameters, formats a message from a template, and dispatches it to any combination of Slack, Telegram, Discord, SMS, and Email.
+Linker is a lightweight Symfony service that routes HTTP requests to multi-channel notifications using plain YAML configuration. Instead of writing code for every alerting integration, you define notification endpoints declaratively — specifying parameters, a message template, and target channels — and Linker handles validation, formatting, and dispatch to Slack, Telegram, Discord, SMS, and Email.
 
 ```text
 GET /notify/server-alert?server=web1&status=down&message=disk+full
@@ -9,12 +9,12 @@ GET /notify/server-alert?server=web1&status=down&message=disk+full
 
 ### Features
 
-- **Zero-code endpoints** — drop a YAML file in `config/links/` to create a new notification route
-- **Multi-channel dispatch** — send to Slack, Telegram, Discord, SMS (Twilio), and Email from a single request
+- **Config-driven endpoints** — drop a YAML file in `config/links/` to create a new notification route; no code changes or redeployment required
+- **Multi-channel dispatch** — fan out a single request to any combination of Slack, Telegram, Discord, SMS (Twilio), and Email
 - **Parameter validation** — required/optional query parameters with type checking and defaults
 - **Message templating** — `{placeholder}` interpolation in messages and email subjects
 - **GET and POST support** — trigger notifications via either HTTP method
-- **Structured error responses** — JSON errors for missing links, invalid parameters, and transport failures
+- **Structured JSON API** — consistent responses for success, missing links, invalid parameters, and transport failures
 
 ## How It Works
 
@@ -142,6 +142,19 @@ MAILER_DSN=smtp://user:pass@smtp.example.com:587
 ```
 
 Any transport left as `null://null` will silently discard messages, so you only need to configure the channels you actually use.
+
+### Local Email Testing (Mailpit)
+
+The development environment includes [Mailpit](https://github.com/axllent/mailpit), a local SMTP server with a web UI for inspecting outgoing emails. It starts automatically with `make up` — no configuration needed.
+
+- **SMTP**: available inside the Docker network on port `1025`
+- **Web UI**: open [http://localhost:8025](http://localhost:8025) to view captured emails
+
+To route emails through Mailpit, set in `.env.local`:
+
+```env
+MAILER_DSN=smtp://mailer:1025
+```
 
 ### Database
 
@@ -290,6 +303,22 @@ make phpcs           # PHPCS check only
 make lint            # All linters (PHPCS + PHP-CS-Fixer dry-run)
 ```
 
+### Debugging with Xdebug
+
+Xdebug is pre-installed but disabled by default. Enable it by setting the `XDEBUG_MODE` environment variable before starting containers:
+
+```bash
+XDEBUG_MODE=debug make up     # Enable step debugging
+XDEBUG_MODE=coverage make up  # Enable code coverage
+XDEBUG_MODE=off make up       # Disable (default)
+```
+
+Or run a single command with coverage without restarting:
+
+```bash
+make test-coverage   # Runs PHPUnit with XDEBUG_MODE=coverage
+```
+
 ### Shell Access and Debugging
 
 ```bash
@@ -338,6 +367,24 @@ make about           # Show Symfony project info
 ```bash
 make entity ARGS="EntityName"         # Create a new Doctrine entity
 make controller ARGS="ControllerName" # Create a new controller
+```
+
+### Docker Compose Files
+
+The project uses multiple Compose files for different environments:
+
+| File | Purpose |
+| ---- | ------- |
+| `compose.yaml` | Base services (PHP + MySQL) |
+| `compose.override.yaml` | Development defaults — source mounts, Xdebug, Mailpit, file watching (loaded automatically) |
+| `compose.prod.yaml` | Production overrides — no source mounts, requires `APP_SECRET` |
+| `compose.ci.yaml` | CI overrides — baked-in code, health checks, test DB init |
+
+For production or CI, specify the files explicitly:
+
+```bash
+docker compose -f compose.yaml -f compose.prod.yaml up -d
+docker compose -f compose.yaml -f compose.ci.yaml up -d
 ```
 
 ### Project Structure
