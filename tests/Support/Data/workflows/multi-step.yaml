@@ -1,0 +1,32 @@
+description: 'Multi-step deploy notification'
+parameters:
+    app:
+        required: true
+        type: string
+    version:
+        required: true
+        type: string
+    environment:
+        required: true
+        type: string
+    deployer:
+        required: false
+        type: string
+        default: 'system'
+steps:
+    - name: notify-team
+      link: test-slack
+      parameters:
+          message: 'Deploy started: {app} v{version} to {environment} by {deployer}'
+    - name: alert-ops
+      link: server-alert
+      parameters:
+          server: '{environment}'
+          status: 'deploying'
+          message: '{app} v{version}'
+    - name: log-deploy
+      link: deploy-notify
+      parameters:
+          app: '{app}'
+          version: '{version}'
+          environment: '{environment}'

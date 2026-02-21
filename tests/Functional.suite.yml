@@ -15,5 +15,6 @@ modules:
         - REST:
             depends: Symfony
             url: /
+        - Asserts
         - \App\Tests\Support\Helper\Functional
 step_decorators: ~

@@ -1,0 +1,23 @@
+description: 'Hotfix deployment notification workflow'
+parameters:
+    service:
+        required: true
+        type: string
+    version:
+        required: true
+        type: string
+    description:
+        required: false
+        type: string
+        default: 'Hotfix applied'
+steps:
+    - name: notify
+      link: server-alert
+      parameters:
+          server: '{service}'
+          status: 'hotfix'
+          message: '[HOTFIX] {service} deployed {version}: {description}'
+    - name: log
+      link: test-slack
+      parameters:
+          message: '[HOTFIX] {service} v{version}: {description}'
