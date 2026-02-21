@@ -7,6 +7,7 @@ namespace App\Service;
 use App\Dto\ParameterDefinition;
 use App\Dto\StepDefinition;
 use App\Dto\WorkflowDefinition;
+use App\Exception\InvalidWorkflowConfigException;
 use App\Exception\WorkflowNotFoundException;
 use Symfony\Component\Yaml\Yaml;
 
@@ -91,7 +92,18 @@ class WorkflowConfigLoader
         }
 
         $steps = [];
-        foreach ($data['steps'] ?? [] as $stepConfig) {
+        foreach ($data['steps'] ?? [] as $index => $stepConfig) {
+            foreach (['name', 'link'] as $requiredKey) {
+                if (!isset($stepConfig[$requiredKey])) {
+                    throw new InvalidWorkflowConfigException(\sprintf(
+                        'Step at index %d in workflow "%s" is missing required key "%s".',
+                        $index,
+                        $name,
+                        $requiredKey,
+                    ));
+                }
+            }
+
             $steps[] = new StepDefinition(
                 name: $stepConfig['name'],
                 link: $stepConfig['link'],
