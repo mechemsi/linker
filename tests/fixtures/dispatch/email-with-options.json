@@ -1,0 +1,25 @@
+{
+    "description": "Dispatch email with to/subject options (subject also interpolated)",
+    "link": {
+        "name": "test",
+        "messageTemplate": "Deployed {app}",
+        "parameters": [
+            {"name": "app", "required": true, "type": "string", "default": null}
+        ],
+        "channels": [
+            {
+                "transport": "email",
+                "options": {
+                    "to": "team@example.com",
+                    "subject": "Deploy: {app}"
+                }
+            }
+        ]
+    },
+    "input": {
+        "app": "myapp"
+    },
+    "expected_message": "Deployed myapp",
+    "expected_subject": "Deploy: myapp",
+    "expected_transports": ["email"]
+}

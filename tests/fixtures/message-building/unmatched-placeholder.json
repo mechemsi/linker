@@ -1,0 +1,8 @@
+{
+    "description": "Unmatched placeholder left as-is in output",
+    "template": "Hello {name}, your {thing} is ready",
+    "parameters": {
+        "name": "Alice"
+    },
+    "expected_message": "Hello Alice, your {thing} is ready"
+}

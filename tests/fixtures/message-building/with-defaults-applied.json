@@ -1,0 +1,10 @@
+{
+    "description": "Resolved parameters (with defaults) interpolated into template",
+    "template": "Deployed {app} v{version} to {environment}",
+    "parameters": {
+        "app": "linker",
+        "version": "2.0.0",
+        "environment": "production"
+    },
+    "expected_message": "Deployed linker v2.0.0 to production"
+}

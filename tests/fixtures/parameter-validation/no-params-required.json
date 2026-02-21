@@ -1,0 +1,9 @@
+{
+    "description": "Link with no parameters defined — empty input is valid",
+    "link_config": "config-loading/valid-minimal.yaml",
+    "input": {},
+    "expected": {
+        "valid": true,
+        "resolved": {}
+    }
+}

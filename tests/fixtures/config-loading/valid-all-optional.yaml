@@ -1,0 +1,14 @@
+parameters:
+    greeting:
+        required: false
+        type: string
+        default: 'Hello'
+    name:
+        required: false
+        type: string
+        default: 'World'
+
+message_template: '{greeting}, {name}!'
+
+channels:
+    - transport: slack

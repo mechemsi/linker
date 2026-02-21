@@ -1,0 +1,10 @@
+{
+    "description": "All required parameters missing — multiple validation errors",
+    "link_config": "config-loading/valid-full.yaml",
+    "input": {},
+    "expected": {
+        "valid": false,
+        "error_count": 2,
+        "error_contains": ["server", "status"]
+    }
+}

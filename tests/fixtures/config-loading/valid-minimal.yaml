@@ -1,0 +1,5 @@
+parameters: {}
+
+message_template: 'Static notification'
+
+channels: []

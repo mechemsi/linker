@@ -1,0 +1,15 @@
+{
+    "description": "GET request with all parameters — 200 OK happy path",
+    "method": "GET",
+    "uri": "/notify/server-alert",
+    "query_params": {
+        "server": "web1",
+        "status": "down",
+        "message": "disk full"
+    },
+    "expected_status": 200,
+    "expected_body": {
+        "status": "ok",
+        "link": "server-alert"
+    }
+}

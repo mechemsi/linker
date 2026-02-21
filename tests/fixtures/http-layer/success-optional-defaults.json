@@ -1,0 +1,14 @@
+{
+    "description": "GET request with only required params — optional defaults applied",
+    "method": "GET",
+    "uri": "/notify/server-alert",
+    "query_params": {
+        "server": "web1",
+        "status": "up"
+    },
+    "expected_status": 200,
+    "expected_body": {
+        "status": "ok",
+        "link": "server-alert"
+    }
+}

@@ -1,0 +1,19 @@
+{
+    "description": "Dispatch to multiple channels in a single notification",
+    "link": {
+        "name": "test",
+        "messageTemplate": "{msg}",
+        "parameters": [
+            {"name": "msg", "required": true, "type": "string", "default": null}
+        ],
+        "channels": [
+            {"transport": "slack", "options": {}},
+            {"transport": "telegram", "options": {}}
+        ]
+    },
+    "input": {
+        "msg": "hello"
+    },
+    "expected_message": "hello",
+    "expected_transports": ["slack", "telegram"]
+}

@@ -1,0 +1,6 @@
+{
+    "description": "Template with no placeholders — static message unchanged",
+    "template": "Static notification",
+    "parameters": {},
+    "expected_message": "Static notification"
+}
