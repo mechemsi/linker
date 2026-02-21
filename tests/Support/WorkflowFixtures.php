@@ -111,6 +111,36 @@ final class WorkflowFixtures
     }
 
     /**
+     * Happy-path inputs for the "hotfix" workflow fixture.
+     *
+     * @return array<string, string>
+     */
+    public static function hotfixWorkflowInput(): array
+    {
+        return [
+            'service' => 'payment-api',
+            'version' => '3.1.1',
+            'issue' => 'JIRA-4521',
+            'environment' => 'production',
+            'author' => 'jane.doe',
+        ];
+    }
+
+    /**
+     * Inputs for "hotfix" workflow relying on parameter defaults.
+     *
+     * @return array<string, string>
+     */
+    public static function hotfixWorkflowInputWithDefaults(): array
+    {
+        return [
+            'service' => 'auth-service',
+            'version' => '1.0.3',
+            'issue' => 'HOTFIX-99',
+        ];
+    }
+
+    /**
      * Edge case: values containing placeholder-like braces.
      *
      * @return array<string, string>

@@ -747,4 +747,176 @@ class WorkflowExecutorTest extends TestCase
         $this->assertSame('Link "bad-link-1" unavailable', $result->stepResults[0]->error);
         $this->assertSame('Link "bad-link-2" unavailable', $result->stepResults[1]->error);
     }
+
+    #[Test]
+    public function itExecutesHotfixFixtureWorkflow(): void
+    {
+        $loader = new WorkflowConfigLoader(WorkflowFixtures::fixturesPath());
+        $workflow = $loader->getWorkflow('hotfix');
+
+        $configLoader = $this->createStub(WorkflowConfigLoader::class);
+        $configLoader->method('getWorkflow')->willReturn($workflow);
+
+        $notificationService = $this->createMock(LinkNotificationService::class);
+        $notificationService->expects($this->exactly(3))
+            ->method('send')
+            ->willReturn(['slack']);
+
+        $executor = new WorkflowExecutor($configLoader, $notificationService);
+        $input = WorkflowFixtures::hotfixWorkflowInput();
+        $result = $executor->execute('hotfix', $input);
+
+        $this->assertTrue($result->success);
+        $this->assertSame('hotfix', $result->workflowName);
+        $this->assertSame($input, $result->resolvedParameters);
+        $this->assertCount(3, $result->stepResults);
+        $this->assertSame('notify-team', $result->stepResults[0]->stepName);
+        $this->assertSame('alert-ops', $result->stepResults[1]->stepName);
+        $this->assertSame('log-hotfix', $result->stepResults[2]->stepName);
+
+        foreach ($result->stepResults as $stepResult) {
+            $this->assertInstanceOf(StepResult::class, $stepResult);
+            $this->assertTrue($stepResult->success);
+            $this->assertNull($stepResult->error);
+        }
+    }
+
+    #[Test]
+    public function itExecutesHotfixWorkflowWithDefaultParameters(): void
+    {
+        $loader = new WorkflowConfigLoader(WorkflowFixtures::fixturesPath());
+        $workflow = $loader->getWorkflow('hotfix');
+
+        $configLoader = $this->createStub(WorkflowConfigLoader::class);
+        $configLoader->method('getWorkflow')->willReturn($workflow);
+
+        $notificationService = $this->createMock(LinkNotificationService::class);
+        $notificationService->expects($this->exactly(3))
+            ->method('send')
+            ->willReturn(['slack']);
+
+        $executor = new WorkflowExecutor($configLoader, $notificationService);
+        $input = WorkflowFixtures::hotfixWorkflowInputWithDefaults();
+        $result = $executor->execute('hotfix', $input);
+
+        $this->assertTrue($result->success);
+        $this->assertSame('production', $result->resolvedParameters['environment']);
+        $this->assertSame('on-call', $result->resolvedParameters['author']);
+    }
+
+    #[Test]
+    public function itValidatesHotfixWorkflowOutputsMatchExpectedResults(): void
+    {
+        $loader = new WorkflowConfigLoader(WorkflowFixtures::fixturesPath());
+        $workflow = $loader->getWorkflow('hotfix');
+
+        $configLoader = $this->createStub(WorkflowConfigLoader::class);
+        $configLoader->method('getWorkflow')->willReturn($workflow);
+
+        $capturedCalls = [];
+        $notificationService = $this->createMock(LinkNotificationService::class);
+        $notificationService->expects($this->exactly(3))
+            ->method('send')
+            ->willReturnCallback(static function (string $linkName, array $params) use (&$capturedCalls) {
+                $capturedCalls[] = ['link' => $linkName, 'params' => $params];
+
+                return match ($linkName) {
+                    'test-slack' => ['slack-webhook'],
+                    'server-alert' => ['slack', 'telegram'],
+                    'deploy-notify' => ['slack'],
+                    default => [],
+                };
+            });
+
+        $executor = new WorkflowExecutor($configLoader, $notificationService);
+        $input = WorkflowFixtures::hotfixWorkflowInput();
+        $result = $executor->execute('hotfix', $input);
+
+        $this->assertTrue($result->success);
+        $this->assertNull($result->error);
+        $this->assertCount(3, $result->stepResults);
+
+        // Step 1: notify-team → test-slack
+        $this->assertSame('test-slack', $capturedCalls[0]['link']);
+        $this->assertSame([
+            'message' => 'HOTFIX payment-api v3.1.1 deployed to production by jane.doe — fixes JIRA-4521',
+        ], $capturedCalls[0]['params']);
+        $this->assertTrue($result->stepResults[0]->success);
+        $this->assertSame(['slack-webhook'], $result->stepResults[0]->notifiedTransports);
+
+        // Step 2: alert-ops → server-alert
+        $this->assertSame('server-alert', $capturedCalls[1]['link']);
+        $this->assertSame([
+            'server' => 'production',
+            'status' => 'hotfix-deployed',
+            'message' => 'payment-api v3.1.1 — JIRA-4521',
+        ], $capturedCalls[1]['params']);
+        $this->assertTrue($result->stepResults[1]->success);
+        $this->assertSame(['slack', 'telegram'], $result->stepResults[1]->notifiedTransports);
+
+        // Step 3: log-hotfix → deploy-notify
+        $this->assertSame('deploy-notify', $capturedCalls[2]['link']);
+        $this->assertSame([
+            'app' => 'payment-api',
+            'version' => '3.1.1',
+            'environment' => 'production',
+        ], $capturedCalls[2]['params']);
+        $this->assertTrue($result->stepResults[2]->success);
+    }
+
+    #[Test]
+    public function itValidatesHotfixDefaultParametersProduceExpectedOutputs(): void
+    {
+        $loader = new WorkflowConfigLoader(WorkflowFixtures::fixturesPath());
+        $workflow = $loader->getWorkflow('hotfix');
+
+        $configLoader = $this->createStub(WorkflowConfigLoader::class);
+        $configLoader->method('getWorkflow')->willReturn($workflow);
+
+        $capturedCalls = [];
+        $notificationService = $this->createMock(LinkNotificationService::class);
+        $notificationService->expects($this->exactly(3))
+            ->method('send')
+            ->willReturnCallback(static function (string $linkName, array $params) use (&$capturedCalls) {
+                $capturedCalls[] = ['link' => $linkName, 'params' => $params];
+
+                return ['slack'];
+            });
+
+        $executor = new WorkflowExecutor($configLoader, $notificationService);
+        $input = WorkflowFixtures::hotfixWorkflowInputWithDefaults();
+        $result = $executor->execute('hotfix', $input);
+
+        $this->assertTrue($result->success);
+        $this->assertSame('production', $result->resolvedParameters['environment']);
+        $this->assertSame('on-call', $result->resolvedParameters['author']);
+
+        // Verify default values are interpolated correctly
+        $this->assertSame([
+            'message' => 'HOTFIX auth-service v1.0.3 deployed to production by on-call — fixes HOTFIX-99',
+        ], $capturedCalls[0]['params']);
+    }
+
+    #[Test]
+    public function itFailsHotfixWorkflowWithMissingRequiredParameters(): void
+    {
+        $loader = new WorkflowConfigLoader(WorkflowFixtures::fixturesPath());
+        $workflow = $loader->getWorkflow('hotfix');
+
+        $configLoader = $this->createStub(WorkflowConfigLoader::class);
+        $configLoader->method('getWorkflow')->willReturn($workflow);
+
+        $notificationService = $this->createMock(LinkNotificationService::class);
+        $notificationService->expects($this->never())->method('send');
+
+        $executor = new WorkflowExecutor($configLoader, $notificationService);
+        $result = $executor->execute('hotfix', []);
+
+        $this->assertFalse($result->success);
+        $this->assertNotNull($result->error);
+        $this->assertStringContainsString('service', $result->error);
+        $this->assertStringContainsString('version', $result->error);
+        $this->assertStringContainsString('issue', $result->error);
+        $this->assertSame([], $result->stepResults);
+    }
 }

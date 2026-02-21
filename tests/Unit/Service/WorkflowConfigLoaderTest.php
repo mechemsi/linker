@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Service;
 use App\Dto\ParameterDefinition;
 use App\Dto\StepDefinition;
 use App\Dto\WorkflowDefinition;
+use App\Exception\InvalidWorkflowConfigException;
 use App\Exception\WorkflowNotFoundException;
 use App\Service\WorkflowConfigLoader;
 use App\Tests\Support\WorkflowFixtures;
@@ -220,6 +221,66 @@ YAML);
     }
 
     #[Test]
+    public function itThrowsExceptionWhenStepIsMissingName(): void
+    {
+        file_put_contents($this->tmpDir . '/bad-step.yaml', <<<'YAML'
+description: 'Bad step'
+parameters: {}
+steps:
+    - link: test-slack
+      parameters:
+          message: 'hello'
+YAML);
+
+        $loader = new WorkflowConfigLoader($this->tmpDir);
+
+        $this->expectException(InvalidWorkflowConfigException::class);
+        $this->expectExceptionMessage('Step at index 0 in workflow "bad-step" is missing required key "name".');
+
+        $loader->getWorkflow('bad-step');
+    }
+
+    #[Test]
+    public function itThrowsExceptionWhenStepIsMissingLink(): void
+    {
+        file_put_contents($this->tmpDir . '/bad-link.yaml', <<<'YAML'
+description: 'Bad link'
+parameters: {}
+steps:
+    - name: notify
+      parameters:
+          message: 'hello'
+YAML);
+
+        $loader = new WorkflowConfigLoader($this->tmpDir);
+
+        $this->expectException(InvalidWorkflowConfigException::class);
+        $this->expectExceptionMessage('Step at index 0 in workflow "bad-link" is missing required key "link".');
+
+        $loader->getWorkflow('bad-link');
+    }
+
+    #[Test]
+    public function itReportsCorrectIndexForInvalidStep(): void
+    {
+        file_put_contents($this->tmpDir . '/bad-index.yaml', <<<'YAML'
+description: 'Bad index'
+parameters: {}
+steps:
+    - name: first
+      link: test-slack
+    - name: second-missing-link
+YAML);
+
+        $loader = new WorkflowConfigLoader($this->tmpDir);
+
+        $this->expectException(InvalidWorkflowConfigException::class);
+        $this->expectExceptionMessage('Step at index 1 in workflow "bad-index" is missing required key "link".');
+
+        $loader->getWorkflow('bad-index');
+    }
+
+    #[Test]
     public function itDefaultsDescriptionToEmptyString(): void
     {
         file_put_contents($this->tmpDir . '/no-desc.yaml', <<<'YAML'
@@ -295,7 +356,83 @@ YAML);
         $this->assertArrayHasKey('all-optional-params', $all);
         $this->assertArrayHasKey('multi-step', $all);
         $this->assertArrayHasKey('step-without-params', $all);
-        $this->assertCount(6, $all);
+        $this->assertArrayHasKey('hotfix', $all);
+        $this->assertCount(7, $all);
+    }
+
+    #[Test]
+    public function itLoadsHotfixFixtureWorkflow(): void
+    {
+        $loader = new WorkflowConfigLoader(WorkflowFixtures::fixturesPath());
+        $workflow = $loader->getWorkflow('hotfix');
+
+        $this->assertSame('Hotfix deployment notification workflow', $workflow->description);
+        $this->assertCount(5, $workflow->parameters);
+        $this->assertCount(3, $workflow->steps);
+
+        $paramNames = array_map(static fn (ParameterDefinition $p) => $p->name, $workflow->parameters);
+        $this->assertSame(['service', 'version', 'issue', 'environment', 'author'], $paramNames);
+
+        $stepNames = array_map(static fn (StepDefinition $s) => $s->name, $workflow->steps);
+        $this->assertSame(['notify-team', 'alert-ops', 'log-hotfix'], $stepNames);
+    }
+
+    #[Test]
+    public function hotfixFixtureHasExpectedRequiredAndOptionalParameters(): void
+    {
+        $loader = new WorkflowConfigLoader(WorkflowFixtures::fixturesPath());
+        $workflow = $loader->getWorkflow('hotfix');
+
+        $required = array_filter($workflow->parameters, static fn (ParameterDefinition $p) => $p->required);
+        $optional = array_filter($workflow->parameters, static fn (ParameterDefinition $p) => !$p->required);
+
+        $this->assertCount(3, $required);
+        $this->assertCount(2, $optional);
+
+        $requiredNames = array_map(static fn (ParameterDefinition $p) => $p->name, $required);
+        $this->assertContains('service', $requiredNames);
+        $this->assertContains('version', $requiredNames);
+        $this->assertContains('issue', $requiredNames);
+
+        $optionalNames = array_map(static fn (ParameterDefinition $p) => $p->name, $optional);
+        $this->assertContains('environment', $optionalNames);
+        $this->assertContains('author', $optionalNames);
+    }
+
+    #[Test]
+    public function hotfixFixtureInputCoversAllRequiredParameters(): void
+    {
+        $loader = new WorkflowConfigLoader(WorkflowFixtures::fixturesPath());
+        $workflow = $loader->getWorkflow('hotfix');
+
+        $requiredNames = array_map(
+            static fn (ParameterDefinition $p) => $p->name,
+            array_filter($workflow->parameters, static fn (ParameterDefinition $p) => $p->required),
+        );
+
+        $input = WorkflowFixtures::hotfixWorkflowInput();
+
+        foreach ($requiredNames as $name) {
+            $this->assertArrayHasKey($name, $input, "Hotfix input missing required parameter: $name");
+        }
+    }
+
+    #[Test]
+    public function hotfixFixtureInputWithDefaultsOmitsOptionalParameters(): void
+    {
+        $loader = new WorkflowConfigLoader(WorkflowFixtures::fixturesPath());
+        $workflow = $loader->getWorkflow('hotfix');
+
+        $optionalNames = array_map(
+            static fn (ParameterDefinition $p) => $p->name,
+            array_filter($workflow->parameters, static fn (ParameterDefinition $p) => !$p->required),
+        );
+
+        $input = WorkflowFixtures::hotfixWorkflowInputWithDefaults();
+
+        foreach ($optionalNames as $name) {
+            $this->assertArrayNotHasKey($name, $input, "Hotfix defaults input should omit optional parameter: $name");
+        }
     }
 
     #[Test]

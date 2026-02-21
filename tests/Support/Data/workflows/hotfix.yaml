@@ -1,0 +1,36 @@
+description: 'Hotfix deployment notification workflow'
+parameters:
+    service:
+        required: true
+        type: string
+    version:
+        required: true
+        type: string
+    issue:
+        required: true
+        type: string
+    environment:
+        required: false
+        type: string
+        default: 'production'
+    author:
+        required: false
+        type: string
+        default: 'on-call'
+steps:
+    - name: notify-team
+      link: test-slack
+      parameters:
+          message: 'HOTFIX {service} v{version} deployed to {environment} by {author} — fixes {issue}'
+    - name: alert-ops
+      link: server-alert
+      parameters:
+          server: '{environment}'
+          status: 'hotfix-deployed'
+          message: '{service} v{version} — {issue}'
+    - name: log-hotfix
+      link: deploy-notify
+      parameters:
+          app: '{service}'
+          version: '{version}'
+          environment: '{environment}'
