@@ -1,0 +1,38 @@
+[
+    {
+        "description": "Config output with all required params feeds into validation with all provided",
+        "config_dir": "config-loading",
+        "link_name": "valid-full",
+        "query_params": {
+            "server": "web-01",
+            "status": "DOWN",
+            "message": "Disk full"
+        },
+        "expected_resolved": {
+            "server": "web-01",
+            "status": "DOWN",
+            "message": "Disk full"
+        }
+    },
+    {
+        "description": "Config output with optional defaults feeds into validation without optional param",
+        "config_dir": "config-loading",
+        "link_name": "valid-full",
+        "query_params": {
+            "server": "db-03",
+            "status": "WARN"
+        },
+        "expected_resolved": {
+            "server": "db-03",
+            "status": "WARN",
+            "message": "No details provided"
+        }
+    },
+    {
+        "description": "Minimal config with no parameters feeds into validation with empty input",
+        "config_dir": "config-loading",
+        "link_name": "valid-minimal",
+        "query_params": {},
+        "expected_resolved": {}
+    }
+]

@@ -1,0 +1,12 @@
+{
+    "description": "One required parameter missing — validation fails",
+    "link_config": "config-loading/valid-full.yaml",
+    "input": {
+        "server": "web1"
+    },
+    "expected": {
+        "valid": false,
+        "error_count": 1,
+        "error_contains": ["status"]
+    }
+}

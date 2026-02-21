@@ -1,0 +1,18 @@
+{
+    "description": "Dispatch SMS with phone number option",
+    "link": {
+        "name": "test",
+        "messageTemplate": "Deploy: {app}",
+        "parameters": [
+            {"name": "app", "required": true, "type": "string", "default": null}
+        ],
+        "channels": [
+            {"transport": "sms", "options": {"to": "+1234567890"}}
+        ]
+    },
+    "input": {
+        "app": "myapp"
+    },
+    "expected_message": "Deploy: myapp",
+    "expected_transports": ["sms"]
+}

@@ -1,0 +1,18 @@
+{
+    "description": "Dispatch to a single Slack channel — happy path",
+    "link": {
+        "name": "test",
+        "messageTemplate": "Alert: {server}",
+        "parameters": [
+            {"name": "server", "required": true, "type": "string", "default": null}
+        ],
+        "channels": [
+            {"transport": "slack", "options": {}}
+        ]
+    },
+    "input": {
+        "server": "web1"
+    },
+    "expected_message": "Alert: web1",
+    "expected_transports": ["slack"]
+}

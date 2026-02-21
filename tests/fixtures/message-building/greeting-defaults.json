@@ -1,0 +1,9 @@
+{
+    "description": "All-optional parameters with defaults produce complete message",
+    "template": "{greeting}, {name}!",
+    "parameters": {
+        "greeting": "Hello",
+        "name": "World"
+    },
+    "expected_message": "Hello, World!"
+}

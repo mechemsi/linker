@@ -1,0 +1,34 @@
+{
+    "name": "valid-full",
+    "messageTemplate": "[{status}] Server {server}: {message}",
+    "parameters": [
+        {
+            "name": "server",
+            "required": true,
+            "type": "string",
+            "default": null
+        },
+        {
+            "name": "status",
+            "required": true,
+            "type": "string",
+            "default": null
+        },
+        {
+            "name": "message",
+            "required": false,
+            "type": "string",
+            "default": "No details provided"
+        }
+    ],
+    "channels": [
+        {
+            "transport": "slack",
+            "options": []
+        },
+        {
+            "transport": "telegram",
+            "options": []
+        }
+    ]
+}

@@ -1,0 +1,23 @@
+parameters:
+    app:
+        required: true
+        type: string
+    version:
+        required: true
+        type: string
+    environment:
+        required: false
+        type: string
+        default: 'production'
+
+message_template: 'Deployed {app} v{version} to {environment}'
+
+channels:
+    - transport: discord
+    - transport: sms
+      options:
+          to: '+1234567890'
+    - transport: email
+      options:
+          to: 'team@example.com'
+          subject: 'Deployment: {app} v{version}'

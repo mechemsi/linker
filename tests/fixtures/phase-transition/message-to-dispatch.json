@@ -1,0 +1,25 @@
+[
+    {
+        "description": "Built message dispatches to all channels configured in link definition",
+        "config_dir": "integration",
+        "link_name": "full-pipeline",
+        "query_params": {
+            "server": "web-01",
+            "status": "DOWN",
+            "message": "Disk full"
+        },
+        "expected_message": "[DOWN] Server web-01: Disk full",
+        "expected_transports": ["slack", "email"]
+    },
+    {
+        "description": "Built message with defaults dispatches correctly",
+        "config_dir": "integration",
+        "link_name": "full-pipeline-with-defaults",
+        "query_params": {
+            "server": "db-03",
+            "status": "WARN"
+        },
+        "expected_message": "[WARN] Server db-03: No details provided",
+        "expected_transports": ["slack", "email"]
+    }
+]

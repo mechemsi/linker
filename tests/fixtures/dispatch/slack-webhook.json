@@ -1,0 +1,18 @@
+{
+    "description": "Dispatch via Slack webhook (HTTP POST)",
+    "link": {
+        "name": "test-slack",
+        "messageTemplate": "{message}",
+        "parameters": [
+            {"name": "message", "required": true, "type": "string", "default": null}
+        ],
+        "channels": [
+            {"transport": "slack-webhook", "options": {}}
+        ]
+    },
+    "input": {
+        "message": "Hello from Linker"
+    },
+    "expected_message": "Hello from Linker",
+    "expected_transports": ["slack-webhook"]
+}

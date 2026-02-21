@@ -1,0 +1,12 @@
+{
+    "description": "All parameters optional with no input — all defaults applied",
+    "link_config": "config-loading/valid-all-optional.yaml",
+    "input": {},
+    "expected": {
+        "valid": true,
+        "resolved": {
+            "greeting": "Hello",
+            "name": "World"
+        }
+    }
+}

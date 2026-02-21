@@ -1,0 +1,16 @@
+{
+    "description": "Optional parameter omitted — default value applied",
+    "link_config": "config-loading/valid-full.yaml",
+    "input": {
+        "server": "web1",
+        "status": "up"
+    },
+    "expected": {
+        "valid": true,
+        "resolved": {
+            "server": "web1",
+            "status": "up",
+            "message": "No details provided"
+        }
+    }
+}

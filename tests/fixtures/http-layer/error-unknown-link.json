@@ -1,0 +1,10 @@
+{
+    "description": "Request to unknown link — 404 Not Found",
+    "method": "GET",
+    "uri": "/notify/nonexistent-link",
+    "query_params": {},
+    "expected_status": 404,
+    "expected_body": {
+        "status": "error"
+    }
+}

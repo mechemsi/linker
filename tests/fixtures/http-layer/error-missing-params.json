@@ -1,0 +1,11 @@
+{
+    "description": "Request with missing required params — 400 Bad Request",
+    "method": "GET",
+    "uri": "/notify/server-alert",
+    "query_params": {},
+    "expected_status": 400,
+    "expected_body": {
+        "status": "error"
+    },
+    "expected_json_paths": ["$.errors"]
+}

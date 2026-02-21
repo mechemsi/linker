@@ -1,0 +1,17 @@
+{
+    "description": "All required parameters provided — happy path",
+    "link_config": "config-loading/valid-full.yaml",
+    "input": {
+        "server": "web1",
+        "status": "down",
+        "message": "disk full"
+    },
+    "expected": {
+        "valid": true,
+        "resolved": {
+            "server": "web1",
+            "status": "down",
+            "message": "disk full"
+        }
+    }
+}

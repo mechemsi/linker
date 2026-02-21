@@ -1,0 +1,10 @@
+{
+    "description": "All placeholders interpolated — happy path",
+    "template": "[{status}] Server {server}: {message}",
+    "parameters": {
+        "status": "down",
+        "server": "web1",
+        "message": "disk full"
+    },
+    "expected_message": "[down] Server web1: disk full"
+}

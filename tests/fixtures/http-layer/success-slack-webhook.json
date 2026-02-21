@@ -1,0 +1,13 @@
+{
+    "description": "Slack webhook link — 200 OK",
+    "method": "GET",
+    "uri": "/notify/test-slack",
+    "query_params": {
+        "message": "Hello from test"
+    },
+    "expected_status": 200,
+    "expected_body": {
+        "status": "ok",
+        "link": "test-slack"
+    }
+}

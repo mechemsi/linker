@@ -1,0 +1,6 @@
+{
+    "name": "valid-minimal",
+    "messageTemplate": "Static notification",
+    "parameters": [],
+    "channels": []
+}
