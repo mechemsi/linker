@@ -1,0 +1,19 @@
+description: 'Workflow with all optional parameters'
+parameters:
+    title:
+        required: false
+        type: string
+        default: 'Default Title'
+    body:
+        required: false
+        type: string
+        default: 'Default Body'
+    priority:
+        required: false
+        type: string
+        default: 'low'
+steps:
+    - name: send
+      link: test-slack
+      parameters:
+          message: '[{priority}] {title}: {body}'

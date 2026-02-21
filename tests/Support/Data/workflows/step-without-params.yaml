@@ -1,0 +1,5 @@
+description: 'Workflow with a step that has no parameters'
+parameters: {}
+steps:
+    - name: ping
+      link: test-slack

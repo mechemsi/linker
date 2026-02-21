@@ -9,6 +9,7 @@ use App\Dto\StepDefinition;
 use App\Dto\WorkflowDefinition;
 use App\Exception\WorkflowNotFoundException;
 use App\Service\WorkflowConfigLoader;
+use App\Tests\Support\WorkflowFixtures;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -230,5 +231,106 @@ YAML);
         $workflow = $loader->getWorkflow('no-desc');
 
         $this->assertSame('', $workflow->description);
+    }
+
+    #[Test]
+    public function itLoadsCompleteFixtureWorkflow(): void
+    {
+        $loader = new WorkflowConfigLoader(WorkflowFixtures::fixturesPath());
+        $workflow = $loader->getWorkflow('complete');
+
+        $this->assertSame('Complete workflow for testing', $workflow->description);
+        $this->assertCount(3, $workflow->parameters);
+        $this->assertCount(2, $workflow->steps);
+
+        $paramNames = array_map(static fn (ParameterDefinition $p) => $p->name, $workflow->parameters);
+        $this->assertSame(['server', 'status', 'message'], $paramNames);
+    }
+
+    #[Test]
+    public function itLoadsMinimalFixtureWorkflow(): void
+    {
+        $loader = new WorkflowConfigLoader(WorkflowFixtures::fixturesPath());
+        $workflow = $loader->getWorkflow('minimal');
+
+        $this->assertSame('', $workflow->description);
+        $this->assertCount(0, $workflow->parameters);
+        $this->assertCount(0, $workflow->steps);
+    }
+
+    #[Test]
+    public function itLoadsAllOptionalParamsFixture(): void
+    {
+        $loader = new WorkflowConfigLoader(WorkflowFixtures::fixturesPath());
+        $workflow = $loader->getWorkflow('all-optional-params');
+
+        foreach ($workflow->parameters as $param) {
+            $this->assertFalse($param->required);
+            $this->assertNotNull($param->default);
+        }
+    }
+
+    #[Test]
+    public function itLoadsMultiStepFixtureWorkflow(): void
+    {
+        $loader = new WorkflowConfigLoader(WorkflowFixtures::fixturesPath());
+        $workflow = $loader->getWorkflow('multi-step');
+
+        $this->assertCount(4, $workflow->parameters);
+        $this->assertCount(3, $workflow->steps);
+
+        $stepNames = array_map(static fn (StepDefinition $s) => $s->name, $workflow->steps);
+        $this->assertSame(['notify-team', 'alert-ops', 'log-deploy'], $stepNames);
+    }
+
+    #[Test]
+    public function itLoadsAllFixtureWorkflows(): void
+    {
+        $loader = new WorkflowConfigLoader(WorkflowFixtures::fixturesPath());
+        $all = $loader->getAllWorkflows();
+
+        $this->assertArrayHasKey('complete', $all);
+        $this->assertArrayHasKey('minimal', $all);
+        $this->assertArrayHasKey('single-step', $all);
+        $this->assertArrayHasKey('all-optional-params', $all);
+        $this->assertArrayHasKey('multi-step', $all);
+        $this->assertArrayHasKey('step-without-params', $all);
+        $this->assertCount(6, $all);
+    }
+
+    #[Test]
+    public function fixtureInputCoversAllRequiredParameters(): void
+    {
+        $loader = new WorkflowConfigLoader(WorkflowFixtures::fixturesPath());
+        $workflow = $loader->getWorkflow('complete');
+
+        $requiredNames = array_map(
+            static fn (ParameterDefinition $p) => $p->name,
+            array_filter($workflow->parameters, static fn (ParameterDefinition $p) => $p->required),
+        );
+
+        $input = WorkflowFixtures::completeWorkflowInput();
+
+        foreach ($requiredNames as $name) {
+            $this->assertArrayHasKey($name, $input, "Input missing required parameter: $name");
+        }
+    }
+
+    #[Test]
+    public function fixtureInputWithDefaultsOmitsOptionalParameters(): void
+    {
+        $loader = new WorkflowConfigLoader(WorkflowFixtures::fixturesPath());
+        $workflow = $loader->getWorkflow('complete');
+
+        $optionalNames = array_map(
+            static fn (ParameterDefinition $p) => $p->name,
+            array_filter($workflow->parameters, static fn (ParameterDefinition $p) => !$p->required),
+        );
+
+        $input = WorkflowFixtures::completeWorkflowInputWithDefaults();
+
+        foreach ($optionalNames as $name) {
+            $this->assertArrayNotHasKey($name, $input, "Defaults input should omit optional parameter: $name");
+        }
     }
 }
