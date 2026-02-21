@@ -124,13 +124,18 @@ class WorkflowExecutor
      */
     private function interpolateStepParameters(array $stepParameters, array $resolvedParameters): array
     {
+        $search = [];
+        $replace = [];
+
+        foreach ($resolvedParameters as $paramName => $paramValue) {
+            $search[] = '{' . $paramName . '}';
+            $replace[] = $paramValue;
+        }
+
         $interpolated = [];
 
         foreach ($stepParameters as $key => $value) {
-            foreach ($resolvedParameters as $paramName => $paramValue) {
-                $value = str_replace('{' . $paramName . '}', $paramValue, $value);
-            }
-            $interpolated[$key] = $value;
+            $interpolated[$key] = str_replace($search, $replace, $value);
         }
 
         return $interpolated;

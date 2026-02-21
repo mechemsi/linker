@@ -130,7 +130,7 @@ class WorkflowExecutorCest
             'status' => 'ok',
         ]);
 
-        $I->assertTrue($result->success || !$result->success); // Execution completes
+        $I->assertTrue($result->success); // Execution completes successfully
         $I->assertSame('default', $result->workflowName);
         $I->assertSame('cache-01.staging', $result->resolvedParameters['server']);
         $I->assertSame('ok', $result->resolvedParameters['status']);

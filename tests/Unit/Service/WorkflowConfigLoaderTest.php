@@ -234,6 +234,52 @@ YAML);
     }
 
     #[Test]
+    public function itSkipsNonArrayYamlFiles(): void
+    {
+        file_put_contents($this->tmpDir . '/scalar.yaml', 'just a string');
+
+        $loader = new WorkflowConfigLoader($this->tmpDir);
+
+        $this->assertSame([], $loader->getAllWorkflows());
+    }
+
+    #[Test]
+    public function itThrowsExceptionForStepMissingName(): void
+    {
+        file_put_contents($this->tmpDir . '/bad-step.yaml', <<<'YAML'
+description: 'Bad step'
+parameters: {}
+steps:
+    - link: test-slack
+YAML);
+
+        $loader = new WorkflowConfigLoader($this->tmpDir);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Step #0 in workflow "bad-step" is missing required "name" or "link" field.');
+
+        $loader->getWorkflow('bad-step');
+    }
+
+    #[Test]
+    public function itThrowsExceptionForStepMissingLink(): void
+    {
+        file_put_contents($this->tmpDir . '/no-link.yaml', <<<'YAML'
+description: 'No link'
+parameters: {}
+steps:
+    - name: broken
+YAML);
+
+        $loader = new WorkflowConfigLoader($this->tmpDir);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Step #0 in workflow "no-link" is missing required "name" or "link" field.');
+
+        $loader->getWorkflow('no-link');
+    }
+
+    #[Test]
     public function itLoadsCompleteFixtureWorkflow(): void
     {
         $loader = new WorkflowConfigLoader(WorkflowFixtures::fixturesPath());

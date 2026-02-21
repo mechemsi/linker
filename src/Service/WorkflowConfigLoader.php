@@ -69,6 +69,10 @@ class WorkflowConfigLoader
             $name = basename($file, '.yaml');
             $data = Yaml::parseFile($file);
 
+            if (!is_array($data)) {
+                continue;
+            }
+
             $this->workflows[$name] = $this->parseWorkflow($name, $data);
         }
 
@@ -91,7 +95,13 @@ class WorkflowConfigLoader
         }
 
         $steps = [];
-        foreach ($data['steps'] ?? [] as $stepConfig) {
+        foreach ($data['steps'] ?? [] as $index => $stepConfig) {
+            if (!isset($stepConfig['name'], $stepConfig['link'])) {
+                throw new \InvalidArgumentException(
+                    \sprintf('Step #%d in workflow "%s" is missing required "name" or "link" field.', $index, $name),
+                );
+            }
+
             $steps[] = new StepDefinition(
                 name: $stepConfig['name'],
                 link: $stepConfig['link'],
