@@ -747,4 +747,454 @@ class WorkflowExecutorTest extends TestCase
         $this->assertSame('Link "bad-link-1" unavailable', $result->stepResults[0]->error);
         $this->assertSame('Link "bad-link-2" unavailable', $result->stepResults[1]->error);
     }
+
+    #[Test]
+    public function itHandlesWhitespaceOnlyParameterValues(): void
+    {
+        $loader = new WorkflowConfigLoader(WorkflowFixtures::fixturesPath());
+        $workflow = $loader->getWorkflow('complete');
+
+        $configLoader = $this->createStub(WorkflowConfigLoader::class);
+        $configLoader->method('getWorkflow')->willReturn($workflow);
+
+        $capturedCalls = [];
+        $notificationService = $this->createMock(LinkNotificationService::class);
+        $notificationService->expects($this->exactly(2))
+            ->method('send')
+            ->willReturnCallback(static function (string $linkName, array $params) use (&$capturedCalls) {
+                $capturedCalls[] = ['link' => $linkName, 'params' => $params];
+
+                return ['slack'];
+            });
+
+        $executor = new WorkflowExecutor($configLoader, $notificationService);
+        $input = WorkflowFixtures::whitespaceOnlyInput();
+        $result = $executor->execute('complete', $input);
+
+        $this->assertTrue($result->success);
+        $this->assertSame($input, $result->resolvedParameters);
+
+        // Whitespace values are preserved literally
+        $this->assertSame('   ', $capturedCalls[0]['params']['server']);
+        $this->assertSame("\t", $capturedCalls[0]['params']['status']);
+        $this->assertSame(" \n ", $capturedCalls[0]['params']['message']);
+    }
+
+    #[Test]
+    public function itHandlesVeryLongParameterValues(): void
+    {
+        $workflow = new WorkflowDefinition(
+            name: 'long-values',
+            description: 'Long value test',
+            parameters: [new ParameterDefinition('message', true, 'string')],
+            steps: [new StepDefinition('notify', 'test-slack', ['message' => '{message}'])],
+        );
+
+        $configLoader = $this->createStub(WorkflowConfigLoader::class);
+        $configLoader->method('getWorkflow')->willReturn($workflow);
+
+        $longValue = str_repeat('a', 10000);
+        $capturedParams = [];
+        $notificationService = $this->createMock(LinkNotificationService::class);
+        $notificationService->expects($this->once())
+            ->method('send')
+            ->willReturnCallback(static function (string $linkName, array $params) use (&$capturedParams) {
+                $capturedParams = $params;
+
+                return ['slack'];
+            });
+
+        $executor = new WorkflowExecutor($configLoader, $notificationService);
+        $result = $executor->execute('long-values', ['message' => $longValue]);
+
+        $this->assertTrue($result->success);
+        $this->assertSame($longValue, $result->resolvedParameters['message']);
+        $this->assertSame($longValue, $capturedParams['message']);
+    }
+
+    #[Test]
+    public function itHandlesUnicodeMultibyteParameterValues(): void
+    {
+        $loader = new WorkflowConfigLoader(WorkflowFixtures::fixturesPath());
+        $workflow = $loader->getWorkflow('complete');
+
+        $configLoader = $this->createStub(WorkflowConfigLoader::class);
+        $configLoader->method('getWorkflow')->willReturn($workflow);
+
+        $capturedCalls = [];
+        $notificationService = $this->createMock(LinkNotificationService::class);
+        $notificationService->expects($this->exactly(2))
+            ->method('send')
+            ->willReturnCallback(static function (string $linkName, array $params) use (&$capturedCalls) {
+                $capturedCalls[] = ['link' => $linkName, 'params' => $params];
+
+                return ['slack'];
+            });
+
+        $executor = new WorkflowExecutor($configLoader, $notificationService);
+        $input = WorkflowFixtures::unicodeInput();
+        $result = $executor->execute('complete', $input);
+
+        $this->assertTrue($result->success);
+        $this->assertSame($input, $result->resolvedParameters);
+
+        // Unicode values preserved in interpolation
+        $this->assertSame('サーバー-01', $capturedCalls[0]['params']['server']);
+        $this->assertSame('критический', $capturedCalls[0]['params']['status']);
+
+        // Composite interpolation with unicode
+        $this->assertSame(
+            '[критический] Server サーバー-01: 磁盘使用率: 99% /var/log 已满',
+            $capturedCalls[1]['params']['message'],
+        );
+    }
+
+    #[Test]
+    public function itHandlesNullLikeStringParameterValues(): void
+    {
+        $loader = new WorkflowConfigLoader(WorkflowFixtures::fixturesPath());
+        $workflow = $loader->getWorkflow('complete');
+
+        $configLoader = $this->createStub(WorkflowConfigLoader::class);
+        $configLoader->method('getWorkflow')->willReturn($workflow);
+
+        $capturedCalls = [];
+        $notificationService = $this->createMock(LinkNotificationService::class);
+        $notificationService->expects($this->exactly(2))
+            ->method('send')
+            ->willReturnCallback(static function (string $linkName, array $params) use (&$capturedCalls) {
+                $capturedCalls[] = ['link' => $linkName, 'params' => $params];
+
+                return ['slack'];
+            });
+
+        $executor = new WorkflowExecutor($configLoader, $notificationService);
+        $input = WorkflowFixtures::nullLikeStringInput();
+        $result = $executor->execute('complete', $input);
+
+        $this->assertTrue($result->success);
+        $this->assertSame($input, $result->resolvedParameters);
+
+        // "null", "undefined", "false" are valid string values
+        $this->assertSame('null', $capturedCalls[0]['params']['server']);
+        $this->assertSame('undefined', $capturedCalls[0]['params']['status']);
+        $this->assertSame('false', $capturedCalls[0]['params']['message']);
+
+        $this->assertSame(
+            '[undefined] Server null: false',
+            $capturedCalls[1]['params']['message'],
+        );
+    }
+
+    #[Test]
+    public function itIgnoresExtraParametersNotDefinedInWorkflow(): void
+    {
+        $loader = new WorkflowConfigLoader(WorkflowFixtures::fixturesPath());
+        $workflow = $loader->getWorkflow('complete');
+
+        $configLoader = $this->createStub(WorkflowConfigLoader::class);
+        $configLoader->method('getWorkflow')->willReturn($workflow);
+
+        $capturedCalls = [];
+        $notificationService = $this->createMock(LinkNotificationService::class);
+        $notificationService->expects($this->exactly(2))
+            ->method('send')
+            ->willReturnCallback(static function (string $linkName, array $params) use (&$capturedCalls) {
+                $capturedCalls[] = ['link' => $linkName, 'params' => $params];
+
+                return ['slack'];
+            });
+
+        $executor = new WorkflowExecutor($configLoader, $notificationService);
+        $input = WorkflowFixtures::extraParametersInput();
+        $result = $executor->execute('complete', $input);
+
+        $this->assertTrue($result->success);
+
+        // Extra parameters should NOT appear in resolved parameters
+        $this->assertArrayNotHasKey('extra_param', $result->resolvedParameters);
+        $this->assertArrayNotHasKey('another_extra', $result->resolvedParameters);
+        $this->assertCount(3, $result->resolvedParameters);
+
+        // Only defined parameters are resolved
+        $this->assertSame('web-01', $result->resolvedParameters['server']);
+        $this->assertSame('ok', $result->resolvedParameters['status']);
+        $this->assertSame('All good', $result->resolvedParameters['message']);
+    }
+
+    #[Test]
+    public function itHandlesNewlinesInParameterValues(): void
+    {
+        $loader = new WorkflowConfigLoader(WorkflowFixtures::fixturesPath());
+        $workflow = $loader->getWorkflow('complete');
+
+        $configLoader = $this->createStub(WorkflowConfigLoader::class);
+        $configLoader->method('getWorkflow')->willReturn($workflow);
+
+        $capturedCalls = [];
+        $notificationService = $this->createMock(LinkNotificationService::class);
+        $notificationService->expects($this->exactly(2))
+            ->method('send')
+            ->willReturnCallback(static function (string $linkName, array $params) use (&$capturedCalls) {
+                $capturedCalls[] = ['link' => $linkName, 'params' => $params];
+
+                return ['slack'];
+            });
+
+        $executor = new WorkflowExecutor($configLoader, $notificationService);
+        $input = WorkflowFixtures::newlinesInValuesInput();
+        $result = $executor->execute('complete', $input);
+
+        $this->assertTrue($result->success);
+        $this->assertSame($input, $result->resolvedParameters);
+
+        // Newlines preserved in interpolated output
+        $this->assertSame("web-01\nweb-02", $capturedCalls[0]['params']['server']);
+        $this->assertSame("line1\r\nline2", $capturedCalls[0]['params']['status']);
+    }
+
+    #[Test]
+    public function itHandlesOptionalParameterWithNoDefaultNotProvided(): void
+    {
+        $workflow = new WorkflowDefinition(
+            name: 'no-default',
+            description: 'Optional without default',
+            parameters: [
+                new ParameterDefinition('required_param', true, 'string'),
+                new ParameterDefinition('optional_no_default', false, 'string'),
+            ],
+            steps: [new StepDefinition('notify', 'test-slack', [
+                'message' => '{required_param} - {optional_no_default}',
+            ])],
+        );
+
+        $configLoader = $this->createStub(WorkflowConfigLoader::class);
+        $configLoader->method('getWorkflow')->willReturn($workflow);
+
+        $capturedCalls = [];
+        $notificationService = $this->createMock(LinkNotificationService::class);
+        $notificationService->expects($this->once())
+            ->method('send')
+            ->willReturnCallback(static function (string $linkName, array $params) use (&$capturedCalls) {
+                $capturedCalls[] = ['link' => $linkName, 'params' => $params];
+
+                return ['slack'];
+            });
+
+        $executor = new WorkflowExecutor($configLoader, $notificationService);
+        $result = $executor->execute('no-default', ['required_param' => 'hello']);
+
+        $this->assertTrue($result->success);
+        // Optional param without default is excluded from resolved parameters
+        $this->assertArrayNotHasKey('optional_no_default', $result->resolvedParameters);
+        // Unresolved placeholder remains in interpolated output
+        $this->assertSame('hello - {optional_no_default}', $capturedCalls[0]['params']['message']);
+    }
+
+    #[Test]
+    public function itHandlesStepWithUnreferencedPlaceholders(): void
+    {
+        $workflow = new WorkflowDefinition(
+            name: 'unresolved-placeholders',
+            description: 'Step has placeholders not in workflow params',
+            parameters: [new ParameterDefinition('name', true, 'string')],
+            steps: [new StepDefinition('notify', 'test-slack', [
+                'message' => 'Hello {name}, your {role} is ready on {server}',
+            ])],
+        );
+
+        $configLoader = $this->createStub(WorkflowConfigLoader::class);
+        $configLoader->method('getWorkflow')->willReturn($workflow);
+
+        $capturedCalls = [];
+        $notificationService = $this->createMock(LinkNotificationService::class);
+        $notificationService->expects($this->once())
+            ->method('send')
+            ->willReturnCallback(static function (string $linkName, array $params) use (&$capturedCalls) {
+                $capturedCalls[] = ['link' => $linkName, 'params' => $params];
+
+                return ['slack'];
+            });
+
+        $executor = new WorkflowExecutor($configLoader, $notificationService);
+        $result = $executor->execute('unresolved-placeholders', ['name' => 'Alice']);
+
+        $this->assertTrue($result->success);
+        // Known placeholder resolved, unknown ones preserved literally
+        $this->assertSame(
+            'Hello Alice, your {role} is ready on {server}',
+            $capturedCalls[0]['params']['message'],
+        );
+    }
+
+    #[Test]
+    public function itHandlesMultipleMissingRequiredParametersListingAll(): void
+    {
+        $workflow = new WorkflowDefinition(
+            name: 'many-required',
+            description: 'Many required params',
+            parameters: [
+                new ParameterDefinition('param_a', true, 'string'),
+                new ParameterDefinition('param_b', true, 'string'),
+                new ParameterDefinition('param_c', true, 'string'),
+                new ParameterDefinition('param_d', true, 'string'),
+            ],
+            steps: [new StepDefinition('notify', 'test-slack', ['message' => 'test'])],
+        );
+
+        $configLoader = $this->createStub(WorkflowConfigLoader::class);
+        $configLoader->method('getWorkflow')->willReturn($workflow);
+
+        $notificationService = $this->createMock(LinkNotificationService::class);
+        $notificationService->expects($this->never())->method('send');
+
+        $executor = new WorkflowExecutor($configLoader, $notificationService);
+        $result = $executor->execute('many-required', []);
+
+        $this->assertFalse($result->success);
+        $this->assertNotNull($result->error);
+        // All four missing params mentioned in error
+        $this->assertStringContainsString('param_a', $result->error);
+        $this->assertStringContainsString('param_b', $result->error);
+        $this->assertStringContainsString('param_c', $result->error);
+        $this->assertStringContainsString('param_d', $result->error);
+        $this->assertSame([], $result->stepResults);
+        $this->assertSame([], $result->resolvedParameters);
+    }
+
+    #[Test]
+    public function itHandlesStepWithEmptyParametersArray(): void
+    {
+        $workflow = new WorkflowDefinition(
+            name: 'empty-step-params',
+            description: 'Step with empty parameters',
+            parameters: [],
+            steps: [new StepDefinition('ping', 'test-slack', [])],
+        );
+
+        $configLoader = $this->createStub(WorkflowConfigLoader::class);
+        $configLoader->method('getWorkflow')->willReturn($workflow);
+
+        $notificationService = $this->createMock(LinkNotificationService::class);
+        $notificationService->expects($this->once())
+            ->method('send')
+            ->with('test-slack', [])
+            ->willReturn(['slack-webhook']);
+
+        $executor = new WorkflowExecutor($configLoader, $notificationService);
+        $result = $executor->execute('empty-step-params', []);
+
+        $this->assertTrue($result->success);
+        $this->assertCount(1, $result->stepResults);
+        $this->assertTrue($result->stepResults[0]->success);
+        $this->assertSame(['slack-webhook'], $result->stepResults[0]->notifiedTransports);
+    }
+
+    #[Test]
+    public function itHandlesExceptionTypesOtherThanRuntimeException(): void
+    {
+        $workflow = new WorkflowDefinition(
+            name: 'error-types',
+            description: 'Various exception types',
+            parameters: [new ParameterDefinition('msg', true, 'string')],
+            steps: [
+                new StepDefinition('logic-error', 'link-a', ['message' => '{msg}']),
+                new StepDefinition('overflow', 'link-b', ['message' => '{msg}']),
+                new StepDefinition('ok', 'link-c', ['message' => '{msg}']),
+            ],
+        );
+
+        $configLoader = $this->createStub(WorkflowConfigLoader::class);
+        $configLoader->method('getWorkflow')->willReturn($workflow);
+
+        $notificationService = $this->createMock(LinkNotificationService::class);
+        $notificationService->expects($this->exactly(3))
+            ->method('send')
+            ->willReturnCallback(static function (string $linkName) {
+                return match ($linkName) {
+                    'link-a' => throw new \LogicException('Invalid state'),
+                    'link-b' => throw new \OverflowException('Queue full'),
+                    'link-c' => ['slack'],
+                    default => [],
+                };
+            });
+
+        $executor = new WorkflowExecutor($configLoader, $notificationService);
+        $result = $executor->execute('error-types', ['msg' => 'test']);
+
+        $this->assertFalse($result->success);
+        $this->assertCount(3, $result->stepResults);
+
+        $this->assertFalse($result->stepResults[0]->success);
+        $this->assertSame('Invalid state', $result->stepResults[0]->error);
+
+        $this->assertFalse($result->stepResults[1]->success);
+        $this->assertSame('Queue full', $result->stepResults[1]->error);
+
+        $this->assertTrue($result->stepResults[2]->success);
+    }
+
+    #[Test]
+    public function itHandlesStepReturningEmptyTransportsList(): void
+    {
+        $workflow = new WorkflowDefinition(
+            name: 'empty-transports',
+            description: 'Step returns no transports',
+            parameters: [new ParameterDefinition('msg', true, 'string')],
+            steps: [new StepDefinition('notify', 'test-slack', ['message' => '{msg}'])],
+        );
+
+        $configLoader = $this->createStub(WorkflowConfigLoader::class);
+        $configLoader->method('getWorkflow')->willReturn($workflow);
+
+        $notificationService = $this->createMock(LinkNotificationService::class);
+        $notificationService->expects($this->once())
+            ->method('send')
+            ->willReturn([]);
+
+        $executor = new WorkflowExecutor($configLoader, $notificationService);
+        $result = $executor->execute('empty-transports', ['msg' => 'test']);
+
+        // Step technically succeeded (no exception), even though no transports notified
+        $this->assertTrue($result->success);
+        $this->assertCount(1, $result->stepResults);
+        $this->assertTrue($result->stepResults[0]->success);
+        $this->assertSame([], $result->stepResults[0]->notifiedTransports);
+    }
+
+    #[Test]
+    public function itHandlesSameParameterValueReusedAcrossMultipleSteps(): void
+    {
+        $workflow = new WorkflowDefinition(
+            name: 'reuse-params',
+            description: 'Same param used in every step',
+            parameters: [new ParameterDefinition('msg', true, 'string')],
+            steps: [
+                new StepDefinition('step-1', 'link-a', ['message' => 'First: {msg}']),
+                new StepDefinition('step-2', 'link-b', ['message' => 'Second: {msg}']),
+                new StepDefinition('step-3', 'link-c', ['message' => 'Third: {msg}']),
+            ],
+        );
+
+        $configLoader = $this->createStub(WorkflowConfigLoader::class);
+        $configLoader->method('getWorkflow')->willReturn($workflow);
+
+        $capturedCalls = [];
+        $notificationService = $this->createMock(LinkNotificationService::class);
+        $notificationService->expects($this->exactly(3))
+            ->method('send')
+            ->willReturnCallback(static function (string $linkName, array $params) use (&$capturedCalls) {
+                $capturedCalls[] = $params;
+
+                return ['slack'];
+            });
+
+        $executor = new WorkflowExecutor($configLoader, $notificationService);
+        $result = $executor->execute('reuse-params', ['msg' => 'shared']);
+
+        $this->assertTrue($result->success);
+        $this->assertSame('First: shared', $capturedCalls[0]['message']);
+        $this->assertSame('Second: shared', $capturedCalls[1]['message']);
+        $this->assertSame('Third: shared', $capturedCalls[2]['message']);
+    }
 }

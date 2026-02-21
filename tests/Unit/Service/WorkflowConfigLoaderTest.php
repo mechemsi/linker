@@ -333,4 +333,175 @@ YAML);
             $this->assertArrayNotHasKey($name, $input, "Defaults input should omit optional parameter: $name");
         }
     }
+
+    #[Test]
+    public function itParsesWorkflowWithEmptyDescription(): void
+    {
+        file_put_contents($this->tmpDir . '/empty-desc.yaml', <<<'YAML'
+description: ''
+parameters: {}
+steps: []
+YAML);
+
+        $loader = new WorkflowConfigLoader($this->tmpDir);
+        $workflow = $loader->getWorkflow('empty-desc');
+
+        $this->assertSame('', $workflow->description);
+        $this->assertSame('empty-desc', $workflow->name);
+    }
+
+    #[Test]
+    public function itParsesWorkflowWithUnicodeDescription(): void
+    {
+        file_put_contents($this->tmpDir . '/unicode.yaml', <<<'YAML'
+description: 'ワークフロー説明 — уведомления'
+parameters: {}
+steps: []
+YAML);
+
+        $loader = new WorkflowConfigLoader($this->tmpDir);
+        $workflow = $loader->getWorkflow('unicode');
+
+        $this->assertSame('ワークフロー説明 — уведомления', $workflow->description);
+    }
+
+    #[Test]
+    public function itParsesParameterWithEmptyStringDefault(): void
+    {
+        file_put_contents($this->tmpDir . '/empty-default.yaml', <<<'YAML'
+description: 'Empty default test'
+parameters:
+    note:
+        required: false
+        type: string
+        default: ''
+steps: []
+YAML);
+
+        $loader = new WorkflowConfigLoader($this->tmpDir);
+        $workflow = $loader->getWorkflow('empty-default');
+
+        $this->assertCount(1, $workflow->parameters);
+        $this->assertFalse($workflow->parameters[0]->required);
+        $this->assertSame('', $workflow->parameters[0]->default);
+    }
+
+    #[Test]
+    public function itParsesWorkflowWithManyStepsAndParameters(): void
+    {
+        $yaml = "description: 'Large workflow'\nparameters:\n";
+        for ($i = 1; $i <= 20; $i++) {
+            $yaml .= "    param_{$i}:\n        required: true\n        type: string\n";
+        }
+        $yaml .= "steps:\n";
+        for ($i = 1; $i <= 10; $i++) {
+            $yaml .= "    - name: step-{$i}\n      link: link-{$i}\n"
+                . "      parameters:\n          message: '{param_1}'\n";
+        }
+
+        file_put_contents($this->tmpDir . '/large.yaml', $yaml);
+
+        $loader = new WorkflowConfigLoader($this->tmpDir);
+        $workflow = $loader->getWorkflow('large');
+
+        $this->assertCount(20, $workflow->parameters);
+        $this->assertCount(10, $workflow->steps);
+        $this->assertSame('param_1', $workflow->parameters[0]->name);
+        $this->assertSame('param_20', $workflow->parameters[19]->name);
+        $this->assertSame('step-1', $workflow->steps[0]->name);
+        $this->assertSame('step-10', $workflow->steps[9]->name);
+    }
+
+    #[Test]
+    public function itParsesStepWithManyParameters(): void
+    {
+        file_put_contents($this->tmpDir . '/many-step-params.yaml', <<<'YAML'
+description: 'Many step params'
+parameters: {}
+steps:
+    - name: complex-step
+      link: test-slack
+      parameters:
+          to: 'admin@example.com'
+          subject: 'Alert'
+          body: 'Details here'
+          priority: 'high'
+          format: 'html'
+YAML);
+
+        $loader = new WorkflowConfigLoader($this->tmpDir);
+        $workflow = $loader->getWorkflow('many-step-params');
+
+        $this->assertCount(5, $workflow->steps[0]->parameters);
+        $this->assertSame('admin@example.com', $workflow->steps[0]->parameters['to']);
+        $this->assertSame('html', $workflow->steps[0]->parameters['format']);
+    }
+
+    #[Test]
+    public function itHandlesWorkflowNameWithSpecialCharacters(): void
+    {
+        file_put_contents($this->tmpDir . '/my-workflow-v2.yaml', <<<'YAML'
+description: 'Hyphenated name'
+parameters: {}
+steps: []
+YAML);
+
+        $loader = new WorkflowConfigLoader($this->tmpDir);
+
+        $this->assertTrue($loader->hasWorkflow('my-workflow-v2'));
+        $workflow = $loader->getWorkflow('my-workflow-v2');
+        $this->assertSame('my-workflow-v2', $workflow->name);
+    }
+
+    #[Test]
+    public function itIgnoresNonYamlFilesInDirectory(): void
+    {
+        file_put_contents($this->tmpDir . '/valid.yaml', <<<'YAML'
+description: 'Valid'
+parameters: {}
+steps: []
+YAML);
+        file_put_contents($this->tmpDir . '/readme.txt', 'Not a workflow');
+        file_put_contents($this->tmpDir . '/config.json', '{}');
+
+        $loader = new WorkflowConfigLoader($this->tmpDir);
+        $all = $loader->getAllWorkflows();
+
+        $this->assertCount(1, $all);
+        $this->assertArrayHasKey('valid', $all);
+    }
+
+    #[Test]
+    public function itDefaultsParameterTypeToString(): void
+    {
+        file_put_contents($this->tmpDir . '/no-type.yaml', <<<'YAML'
+description: 'No type specified'
+parameters:
+    name:
+        required: true
+steps: []
+YAML);
+
+        $loader = new WorkflowConfigLoader($this->tmpDir);
+        $workflow = $loader->getWorkflow('no-type');
+
+        $this->assertSame('string', $workflow->parameters[0]->type);
+    }
+
+    #[Test]
+    public function itDefaultsParameterRequiredToTrue(): void
+    {
+        file_put_contents($this->tmpDir . '/no-required.yaml', <<<'YAML'
+description: 'No required field'
+parameters:
+    name:
+        type: string
+steps: []
+YAML);
+
+        $loader = new WorkflowConfigLoader($this->tmpDir);
+        $workflow = $loader->getWorkflow('no-required');
+
+        $this->assertTrue($workflow->parameters[0]->required);
+    }
 }

@@ -187,4 +187,100 @@ class WorkflowExecutorCest
         $I->assertSame([], $result->stepResults);
         $I->assertSame([], $result->resolvedParameters);
     }
+
+    public function nonexistentWorkflowThrowsException(FunctionalTester $I): void
+    {
+        $executor = $I->grabService(WorkflowExecutor::class);
+
+        $I->expectThrowable(
+            new \App\Exception\WorkflowNotFoundException('does-not-exist'),
+            static function () use ($executor): void {
+                $executor->execute('does-not-exist', []);
+            }
+        );
+    }
+
+    public function defaultWorkflowIgnoresExtraParameters(FunctionalTester $I): void
+    {
+        $executor = $I->grabService(WorkflowExecutor::class);
+
+        $result = $executor->execute('default', [
+            'server' => 'web-01',
+            'status' => 'ok',
+            'message' => 'test',
+            'unknown_param' => 'should be ignored',
+            'another_extra' => 'also ignored',
+        ]);
+
+        $I->assertSame('default', $result->workflowName);
+        $I->assertCount(3, $result->resolvedParameters);
+        $I->assertArrayNotHasKey('unknown_param', $result->resolvedParameters);
+        $I->assertArrayNotHasKey('another_extra', $result->resolvedParameters);
+        $I->assertSame('web-01', $result->resolvedParameters['server']);
+    }
+
+    public function defaultWorkflowHandlesEmptyStringParameters(FunctionalTester $I): void
+    {
+        $executor = $I->grabService(WorkflowExecutor::class);
+
+        $result = $executor->execute('default', [
+            'server' => '',
+            'status' => '',
+            'message' => '',
+        ]);
+
+        $I->assertSame('default', $result->workflowName);
+        $I->assertSame('', $result->resolvedParameters['server']);
+        $I->assertSame('', $result->resolvedParameters['status']);
+        $I->assertSame('', $result->resolvedParameters['message']);
+        $I->assertCount(2, $result->stepResults);
+    }
+
+    public function defaultWorkflowHandlesSpecialCharactersInParameters(FunctionalTester $I): void
+    {
+        $executor = $I->grabService(WorkflowExecutor::class);
+
+        $result = $executor->execute('default', [
+            'server' => 'web-01.prod (primary)',
+            'status' => 'error & critical',
+            'message' => 'Disk: 99% — <alert>',
+        ]);
+
+        $I->assertSame('default', $result->workflowName);
+        $I->assertSame('web-01.prod (primary)', $result->resolvedParameters['server']);
+        $I->assertSame('error & critical', $result->resolvedParameters['status']);
+        $I->assertSame('Disk: 99% — <alert>', $result->resolvedParameters['message']);
+        $I->assertCount(2, $result->stepResults);
+    }
+
+    public function defaultWorkflowHandlesUnicodeParameters(FunctionalTester $I): void
+    {
+        $executor = $I->grabService(WorkflowExecutor::class);
+
+        $result = $executor->execute('default', [
+            'server' => 'サーバー-01',
+            'status' => 'критический',
+            'message' => '磁盘使用率高',
+        ]);
+
+        $I->assertSame('default', $result->workflowName);
+        $I->assertSame('サーバー-01', $result->resolvedParameters['server']);
+        $I->assertSame('критический', $result->resolvedParameters['status']);
+        $I->assertSame('磁盘使用率高', $result->resolvedParameters['message']);
+        $I->assertCount(2, $result->stepResults);
+    }
+
+    public function defaultWorkflowErrorListsAllMissingRequiredParams(FunctionalTester $I): void
+    {
+        $executor = $I->grabService(WorkflowExecutor::class);
+
+        // Provide nothing — both 'server' and 'status' are required
+        $result = $executor->execute('default', []);
+
+        $I->assertFalse($result->success);
+        $I->assertNotNull($result->error);
+        $I->assertStringContainsString('server', $result->error);
+        $I->assertStringContainsString('status', $result->error);
+        $I->assertSame([], $result->stepResults);
+    }
 }

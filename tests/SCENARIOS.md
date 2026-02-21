@@ -294,6 +294,189 @@ Defines the key scenarios for validating workflow template execution, including 
 
 ---
 
+## 16. Edge Case: Whitespace-Only Parameter Values
+
+**Scenario:** All parameters are provided but contain only whitespace characters (spaces, tabs, newlines).
+
+**Input:**
+- Workflow: `complete`
+- Parameters: `{ server: "   ", status: "\t", message: " \n " }`
+
+**Acceptance Criteria:**
+- `WorkflowResult.success` is `true` (whitespace strings satisfy "required")
+- `resolvedParameters` matches the whitespace input exactly
+- Interpolation preserves whitespace characters verbatim
+
+**Test locations:**
+- Unit: `WorkflowExecutorTest::itHandlesWhitespaceOnlyParameterValues`
+
+---
+
+## 17. Edge Case: Very Long Parameter Values
+
+**Scenario:** Parameters contain extremely long strings (10,000+ characters).
+
+**Input:**
+- Workflow with a single required parameter
+- Parameter value: 10,000 character string
+
+**Acceptance Criteria:**
+- `WorkflowResult.success` is `true`
+- Full string is preserved in `resolvedParameters` and interpolated output
+- No truncation or corruption
+
+**Test locations:**
+- Unit: `WorkflowExecutorTest::itHandlesVeryLongParameterValues`
+
+---
+
+## 18. Edge Case: Unicode/Multibyte Characters in Values
+
+**Scenario:** Parameter values contain CJK characters, Cyrillic script, and other multibyte Unicode.
+
+**Input:**
+- `{ server: "サーバー-01", status: "критический", message: "磁盘使用率: 99% /var/log 已満" }`
+
+**Acceptance Criteria:**
+- `WorkflowResult.success` is `true`
+- `resolvedParameters` matches input exactly (no encoding issues)
+- Interpolation preserves all multibyte characters
+- Composite interpolation correctly combines unicode segments
+
+**Test locations:**
+- Unit: `WorkflowExecutorTest::itHandlesUnicodeMultibyteParameterValues`
+- Functional: `WorkflowExecutorCest::defaultWorkflowHandlesUnicodeParameters`
+
+---
+
+## 19. Edge Case: Null-Like String Values ("null", "undefined", "false")
+
+**Scenario:** Parameter values are strings that look like programming null/false values.
+
+**Input:**
+- `{ server: "null", status: "undefined", message: "false" }`
+
+**Acceptance Criteria:**
+- `WorkflowResult.success` is `true`
+- Values are treated as literal strings, not converted to actual null/false
+- Interpolation uses literal string values
+
+**Test locations:**
+- Unit: `WorkflowExecutorTest::itHandlesNullLikeStringParameterValues`
+
+---
+
+## 20. Edge Case: Extra Parameters Not Defined in Workflow
+
+**Scenario:** Input includes parameters that are not defined in the workflow schema.
+
+**Input:**
+- Workflow: `complete` (defines server, status, message)
+- Parameters: `{ server: "web-01", status: "ok", message: "test", extra_param: "ignored", another: "also ignored" }`
+
+**Acceptance Criteria:**
+- `WorkflowResult.success` is `true`
+- Extra parameters are silently ignored
+- `resolvedParameters` contains only the defined parameters (3, not 5)
+
+**Test locations:**
+- Unit: `WorkflowExecutorTest::itIgnoresExtraParametersNotDefinedInWorkflow`
+- Functional: `WorkflowExecutorCest::defaultWorkflowIgnoresExtraParameters`
+
+---
+
+## 21. Edge Case: Optional Parameter Without Default, Not Provided
+
+**Scenario:** An optional parameter has no default value and is not provided in input.
+
+**Input:**
+- Workflow with required param + optional param (no default)
+- Only required param provided
+
+**Acceptance Criteria:**
+- `WorkflowResult.success` is `true`
+- Optional param is excluded from `resolvedParameters`
+- Unresolved `{placeholder}` remains literally in interpolated step output
+
+**Test locations:**
+- Unit: `WorkflowExecutorTest::itHandlesOptionalParameterWithNoDefaultNotProvided`
+
+---
+
+## 22. Edge Case: Step Templates with Unreferenced Placeholders
+
+**Scenario:** Step parameter templates reference placeholders that don't correspond to any workflow parameter.
+
+**Input:**
+- Workflow defines param `name`; step template uses `{name}`, `{role}`, `{server}`
+- Only `name` is a defined parameter
+
+**Acceptance Criteria:**
+- `WorkflowResult.success` is `true`
+- Known placeholder `{name}` is resolved
+- Unknown placeholders `{role}` and `{server}` remain literally in output
+
+**Test locations:**
+- Unit: `WorkflowExecutorTest::itHandlesStepWithUnreferencedPlaceholders`
+
+---
+
+## 23. Edge Case: Multiple Missing Required Parameters Lists All
+
+**Scenario:** Four required parameters exist, none provided.
+
+**Acceptance Criteria:**
+- `WorkflowResult.success` is `false`
+- `WorkflowResult.error` mentions all four missing parameter names
+- No steps executed
+
+**Test locations:**
+- Unit: `WorkflowExecutorTest::itHandlesMultipleMissingRequiredParametersListingAll`
+- Functional: `WorkflowExecutorCest::defaultWorkflowErrorListsAllMissingRequiredParams`
+
+---
+
+## 24. Edge Case: Various Exception Types from Steps
+
+**Scenario:** Steps throw different exception types (LogicException, OverflowException) not just RuntimeException.
+
+**Acceptance Criteria:**
+- All exception types are caught (Throwable catch)
+- Error messages from each type are captured in StepResult
+- Execution continues past each failure
+
+**Test locations:**
+- Unit: `WorkflowExecutorTest::itHandlesExceptionTypesOtherThanRuntimeException`
+
+---
+
+## 25. Edge Case: Step Returns Empty Transports List
+
+**Scenario:** A step's `send()` call succeeds but returns an empty array of transports.
+
+**Acceptance Criteria:**
+- `StepResult.success` is `true` (no exception was thrown)
+- `StepResult.notifiedTransports` is `[]`
+- Overall workflow `success` is `true`
+
+**Test locations:**
+- Unit: `WorkflowExecutorTest::itHandlesStepReturningEmptyTransportsList`
+
+---
+
+## 26. Edge Case: Newlines and Control Characters in Values
+
+**Scenario:** Parameter values contain newline characters (\n, \r\n) and tabs.
+
+**Acceptance Criteria:**
+- `WorkflowResult.success` is `true`
+- Control characters preserved verbatim in resolved parameters and interpolated output
+
+**Test locations:**
+- Unit: `WorkflowExecutorTest::itHandlesNewlinesInParameterValues`
+
+---
+
 ## Output Format Reference
 
 A passing `WorkflowResult` (success) has this shape:
