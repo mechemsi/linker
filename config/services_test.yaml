@@ -1,4 +1,8 @@
 services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
     App\Tests\Support\MockResponseFactory:
         autoconfigure: false
 
@@ -6,3 +10,6 @@ services:
         public: true
         arguments:
             $workflowsDirectory: '%kernel.project_dir%/config/workflows'
+
+    App\Service\WorkflowExecutor:
+        public: true
