@@ -1,0 +1,10 @@
+description: 'Single step workflow'
+parameters:
+    message:
+        required: true
+        type: string
+steps:
+    - name: notify
+      link: test-slack
+      parameters:
+          message: '{message}'
