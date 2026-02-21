@@ -26,3 +26,7 @@ services:
     App\Service\LinkNotificationService:
         arguments:
             $slackWebhookUrl: '%env(SLACK_WEBHOOK_URL)%'
+
+    App\Service\WorkflowConfigLoader:
+        arguments:
+            $workflowsDirectory: '%kernel.project_dir%/config/workflows'
