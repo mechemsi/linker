@@ -19,6 +19,7 @@ jobs:
   tests:
     name: Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     env:
       COMPOSE_FILE: compose.yaml:compose.ci.yaml
     steps:
@@ -59,6 +60,7 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
       packages: read
