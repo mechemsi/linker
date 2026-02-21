@@ -1,0 +1,23 @@
+description: 'Default notification workflow'
+parameters:
+    server:
+        required: true
+        type: string
+    status:
+        required: true
+        type: string
+    message:
+        required: false
+        type: string
+        default: 'No details provided'
+steps:
+    - name: alert
+      link: server-alert
+      parameters:
+          server: '{server}'
+          status: '{status}'
+          message: '{message}'
+    - name: log
+      link: test-slack
+      parameters:
+          message: '[{status}] Server {server}: {message}'
