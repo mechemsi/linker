@@ -1,3 +1,8 @@
 services:
     App\Tests\Support\MockResponseFactory:
         autoconfigure: false
+
+    App\Service\WorkflowConfigLoader:
+        public: true
+        arguments:
+            $workflowsDirectory: '%kernel.project_dir%/config/workflows'
