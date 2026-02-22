@@ -1,0 +1,48 @@
+---
+name: Security
+
+on:
+  push:
+    branches:
+      - main
+  pull_request: ~
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch: ~
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  composer-audit:
+    name: Composer Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+      - name: Run Composer audit
+        run: composer audit --format=plain
+
+  symfony-security:
+    name: Symfony Security Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Symfony security check
+        uses: symfonycorp/security-checker-action@v5

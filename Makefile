@@ -156,6 +156,15 @@ lint: phpcs cs-check ## Run all linters (PHPCS + CS-Fixer check)
 
 fix: phpcbf cs-fix ## Fix all code style issues
 
+## —— Security 🔒 —————————————————————————————————————————————————————————————
+audit: ## Run Composer audit for known vulnerabilities
+	@$(COMPOSER) audit --format=plain
+
+security: ## Run Symfony security check
+	@$(PHP_CONT) bin/console security:check || $(PHP_CONT) local-php-security-checker
+
+security-all: audit security ## Run all security checks
+
 ## —— Shell Access 💻 ——————————————————————————————————————————————————————————
 sh: ## Open shell in PHP container
 	@$(PHP_CONT) bash
