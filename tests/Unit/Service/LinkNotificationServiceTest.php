@@ -210,6 +210,35 @@ class LinkNotificationServiceTest extends TestCase
     }
 
     #[Test]
+    public function sendSmsThrowsWhenToOptionMissing(): void
+    {
+        $link = new LinkDefinition(
+            name: 'test',
+            messageTemplate: 'Alert: {msg}',
+            parameters: [new ParameterDefinition('msg', true, 'string')],
+            channels: [new ChannelDefinition('sms')],
+        );
+
+        $configLoader = $this->createStub(LinkConfigLoader::class);
+        $configLoader->method('getLink')->willReturn($link);
+
+        $service = new LinkNotificationService(
+            $configLoader,
+            new MessageBuilder(),
+            $this->createStub(ChatterInterface::class),
+            $this->createStub(TexterInterface::class),
+            $this->createStub(MailerInterface::class),
+            $this->createStub(HttpClientInterface::class),
+            'https://hooks.slack.com/services/test/test/test',
+        );
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('SMS channel requires "to" option.');
+
+        $service->send('test', ['msg' => 'hello']);
+    }
+
+    #[Test]
     public function sendPropagatesLinkNotFoundException(): void
     {
         $configLoader = $this->createStub(LinkConfigLoader::class);

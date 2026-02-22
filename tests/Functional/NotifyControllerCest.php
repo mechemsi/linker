@@ -87,4 +87,20 @@ class NotifyControllerCest
             'link' => 'test-slack',
         ]);
     }
+
+    public function smsLinkReturns200(FunctionalTester $I): void
+    {
+        $I->sendGet('/notify/deploy-notify', [
+            'app' => 'linker',
+            'version' => '1.0.0',
+        ]);
+
+        $I->seeResponseCodeIs(200);
+        $I->seeResponseIsJson();
+        $I->seeResponseContainsJson([
+            'status' => 'ok',
+            'link' => 'deploy-notify',
+        ]);
+        $I->seeResponseJsonMatchesJsonPath('$.channels_notified');
+    }
 }
