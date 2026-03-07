@@ -711,6 +711,132 @@ class LinkNotificationServiceTest extends TestCase
     }
 
     #[Test]
+    public function smsMessageTruncatedWhenExceedingLimit(): void
+    {
+        $longMessage = str_repeat('a', 1700);
+        $link = new LinkDefinition(
+            name: 'test',
+            messageTemplate: '{msg}',
+            parameters: [new ParameterDefinition('msg', true, 'string')],
+            channels: [new ChannelDefinition('sms', ['to' => '+1234567890'])],
+        );
+
+        $configLoader = $this->createStub(LinkConfigLoader::class);
+        $configLoader->method('getLink')->willReturn($link);
+
+        $texter = $this->createMock(TexterInterface::class);
+        $texter->expects($this->once())
+            ->method('send')
+            ->with($this->callback(static function (SmsMessage $msg) {
+                return 1600 === mb_strlen($msg->getSubject())
+                    && str_ends_with($msg->getSubject(), '...');
+            }));
+
+        $warningLogged = false;
+        $logger = $this->createStub(LoggerInterface::class);
+        $logger->method('warning')
+            ->willReturnCallback(function (string $message) use (&$warningLogged): void {
+                if (str_contains($message, 'SMS message exceeds')) {
+                    $warningLogged = true;
+                }
+            });
+
+        $service = new LinkNotificationService(
+            $configLoader,
+            new MessageBuilder(),
+            $this->createStub(ChatterInterface::class),
+            $texter,
+            $this->createStub(MailerInterface::class),
+            $this->createStub(HttpClientInterface::class),
+            $logger,
+            'https://hooks.slack.com/services/test/test/test',
+        );
+
+        $service->send('test', ['msg' => $longMessage]);
+        $this->assertTrue($warningLogged, 'Expected warning about SMS message length');
+    }
+
+    #[Test]
+    public function discordMessageTruncatedWhenExceedingLimit(): void
+    {
+        $longMessage = str_repeat('b', 2500);
+        $link = new LinkDefinition(
+            name: 'test',
+            messageTemplate: '{msg}',
+            parameters: [new ParameterDefinition('msg', true, 'string')],
+            channels: [new ChannelDefinition('discord')],
+        );
+
+        $configLoader = $this->createStub(LinkConfigLoader::class);
+        $configLoader->method('getLink')->willReturn($link);
+
+        $chatter = $this->createMock(ChatterInterface::class);
+        $chatter->expects($this->once())
+            ->method('send')
+            ->with($this->callback(static function (ChatMessage $msg) {
+                return 2000 === mb_strlen($msg->getSubject())
+                    && str_ends_with($msg->getSubject(), '...');
+            }));
+
+        $warningLogged = false;
+        $logger = $this->createStub(LoggerInterface::class);
+        $logger->method('warning')
+            ->willReturnCallback(function (string $message) use (&$warningLogged): void {
+                if (str_contains($message, 'Message exceeds')) {
+                    $warningLogged = true;
+                }
+            });
+
+        $service = new LinkNotificationService(
+            $configLoader,
+            new MessageBuilder(),
+            $chatter,
+            $this->createStub(TexterInterface::class),
+            $this->createStub(MailerInterface::class),
+            $this->createStub(HttpClientInterface::class),
+            $logger,
+            'https://hooks.slack.com/services/test/test/test',
+        );
+
+        $service->send('test', ['msg' => $longMessage]);
+        $this->assertTrue($warningLogged, 'Expected warning about discord message length');
+    }
+
+    #[Test]
+    public function shortMessageIsNotTruncated(): void
+    {
+        $link = new LinkDefinition(
+            name: 'test',
+            messageTemplate: '{msg}',
+            parameters: [new ParameterDefinition('msg', true, 'string')],
+            channels: [new ChannelDefinition('sms', ['to' => '+1234567890'])],
+        );
+
+        $configLoader = $this->createStub(LinkConfigLoader::class);
+        $configLoader->method('getLink')->willReturn($link);
+
+        $texter = $this->createMock(TexterInterface::class);
+        $texter->expects($this->once())
+            ->method('send')
+            ->with($this->callback(static function (SmsMessage $msg) {
+                return 'short message' === $msg->getSubject();
+            }));
+
+        $service = new LinkNotificationService(
+            $configLoader,
+            new MessageBuilder(),
+            $this->createStub(ChatterInterface::class),
+            $texter,
+            $this->createStub(MailerInterface::class),
+            $this->createStub(HttpClientInterface::class),
+            $this->createStub(LoggerInterface::class),
+            'https://hooks.slack.com/services/test/test/test',
+        );
+
+        $service->send('test', ['msg' => 'short message']);
+    }
+
+    #[Test]
     public function mixedTransportSuccessAndFailureAcrossDifferentTypes(): void
     {
         $link = new LinkDefinition(

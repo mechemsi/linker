@@ -19,6 +19,11 @@ class LinkNotificationService
 {
     private const float WEBHOOK_TIMEOUT = 10.0;
 
+    private const int SMS_MAX_LENGTH = 1600;
+    private const int SLACK_MAX_LENGTH = 40000;
+    private const int DISCORD_MAX_LENGTH = 2000;
+    private const int TELEGRAM_MAX_LENGTH = 4096;
+
     public function __construct(
         private readonly LinkConfigLoader $configLoader,
         private readonly MessageBuilder $messageBuilder,
@@ -120,6 +125,22 @@ class LinkNotificationService
 
     private function sendChat(ChannelDefinition $channel, string $message): void
     {
+        $maxLength = match ($channel->transport) {
+            'slack' => self::SLACK_MAX_LENGTH,
+            'discord' => self::DISCORD_MAX_LENGTH,
+            'telegram' => self::TELEGRAM_MAX_LENGTH,
+            default => null,
+        };
+
+        if (null !== $maxLength && mb_strlen($message) > $maxLength) {
+            $this->logger->warning('Message exceeds {transport} limit of {limit} chars (actual: {actual})', [
+                'transport' => $channel->transport,
+                'limit' => $maxLength,
+                'actual' => mb_strlen($message),
+            ]);
+            $message = mb_substr($message, 0, $maxLength - 3) . '...';
+        }
+
         $chatMessage = new ChatMessage($message);
         $chatMessage->transport($channel->transport);
         $this->chatter->send($chatMessage);
@@ -128,6 +149,15 @@ class LinkNotificationService
     private function sendSms(ChannelDefinition $channel, string $message): void
     {
         $to = $channel->options['to'] ?? throw new \RuntimeException('SMS channel requires "to" option.');
+
+        if (mb_strlen($message) > self::SMS_MAX_LENGTH) {
+            $this->logger->warning('SMS message exceeds {limit} chars (actual: {actual}), truncating', [
+                'limit' => self::SMS_MAX_LENGTH,
+                'actual' => mb_strlen($message),
+            ]);
+            $message = mb_substr($message, 0, self::SMS_MAX_LENGTH - 3) . '...';
+        }
+
         $smsMessage = new SmsMessage($to, $message);
         $smsMessage->transport('twilio');
         $this->texter->send($smsMessage);
