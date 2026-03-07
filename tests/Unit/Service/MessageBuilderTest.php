@@ -94,6 +94,144 @@ class MessageBuilderTest extends TestCase
     }
 
     #[Test]
+    public function resolveParametersValidatesIntegerType(): void
+    {
+        $link = $this->createLink([
+            new ParameterDefinition('count', true, 'integer'),
+        ]);
+
+        $resolved = $this->builder->resolveParameters($link, ['count' => '42']);
+        $this->assertSame(['count' => '42'], $resolved);
+    }
+
+    #[Test]
+    public function resolveParametersRejectsInvalidInteger(): void
+    {
+        $link = $this->createLink([
+            new ParameterDefinition('count', true, 'integer'),
+        ]);
+
+        try {
+            $this->builder->resolveParameters($link, ['count' => 'abc']);
+            $this->fail('Expected InvalidParametersException');
+        } catch (InvalidParametersException $e) {
+            $this->assertCount(1, $e->getErrors());
+            $this->assertStringContainsString('must be an integer', $e->getErrors()[0]);
+        }
+    }
+
+    #[Test]
+    public function resolveParametersRejectsFloatAsInteger(): void
+    {
+        $link = $this->createLink([
+            new ParameterDefinition('count', true, 'integer'),
+        ]);
+
+        try {
+            $this->builder->resolveParameters($link, ['count' => '3.14']);
+            $this->fail('Expected InvalidParametersException');
+        } catch (InvalidParametersException $e) {
+            $this->assertStringContainsString('must be an integer', $e->getErrors()[0]);
+        }
+    }
+
+    #[Test]
+    public function resolveParametersValidatesNumberType(): void
+    {
+        $link = $this->createLink([
+            new ParameterDefinition('ratio', true, 'number'),
+        ]);
+
+        $resolved = $this->builder->resolveParameters($link, ['ratio' => '3.14']);
+        $this->assertSame(['ratio' => '3.14'], $resolved);
+    }
+
+    #[Test]
+    public function resolveParametersRejectsInvalidNumber(): void
+    {
+        $link = $this->createLink([
+            new ParameterDefinition('ratio', true, 'number'),
+        ]);
+
+        try {
+            $this->builder->resolveParameters($link, ['ratio' => 'not-a-number']);
+            $this->fail('Expected InvalidParametersException');
+        } catch (InvalidParametersException $e) {
+            $this->assertStringContainsString('must be a number', $e->getErrors()[0]);
+        }
+    }
+
+    #[Test]
+    public function resolveParametersValidatesBooleanType(): void
+    {
+        $link = $this->createLink([
+            new ParameterDefinition('enabled', true, 'boolean'),
+        ]);
+
+        foreach (['true', 'false', '1', '0'] as $validBool) {
+            $resolved = $this->builder->resolveParameters($link, ['enabled' => $validBool]);
+            $this->assertSame(['enabled' => $validBool], $resolved);
+        }
+    }
+
+    #[Test]
+    public function resolveParametersRejectsInvalidBoolean(): void
+    {
+        $link = $this->createLink([
+            new ParameterDefinition('enabled', true, 'boolean'),
+        ]);
+
+        try {
+            $this->builder->resolveParameters($link, ['enabled' => 'yes']);
+            $this->fail('Expected InvalidParametersException');
+        } catch (InvalidParametersException $e) {
+            $this->assertStringContainsString('must be a boolean', $e->getErrors()[0]);
+        }
+    }
+
+    #[Test]
+    public function resolveParametersStringTypeAcceptsAnyValue(): void
+    {
+        $link = $this->createLink([
+            new ParameterDefinition('name', true, 'string'),
+        ]);
+
+        $resolved = $this->builder->resolveParameters($link, ['name' => 'anything goes']);
+        $this->assertSame(['name' => 'anything goes'], $resolved);
+    }
+
+    #[Test]
+    public function resolveParametersRejectsUnsupportedType(): void
+    {
+        $link = $this->createLink([
+            new ParameterDefinition('data', true, 'array'),
+        ]);
+
+        try {
+            $this->builder->resolveParameters($link, ['data' => 'value']);
+            $this->fail('Expected InvalidParametersException');
+        } catch (InvalidParametersException $e) {
+            $this->assertStringContainsString('unsupported type', $e->getErrors()[0]);
+        }
+    }
+
+    #[Test]
+    public function resolveParametersCollectsTypeAndMissingErrors(): void
+    {
+        $link = $this->createLink([
+            new ParameterDefinition('count', true, 'integer'),
+            new ParameterDefinition('name', true, 'string'),
+        ]);
+
+        try {
+            $this->builder->resolveParameters($link, ['count' => 'abc']);
+            $this->fail('Expected InvalidParametersException');
+        } catch (InvalidParametersException $e) {
+            $this->assertCount(2, $e->getErrors());
+        }
+    }
+
+    #[Test]
     public function buildMessageInterpolatesPlaceholders(): void
     {
         $link = $this->createLink([], '[{status}] Server {server}: {message}');
