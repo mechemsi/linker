@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Dto\ChannelDefinition;
-use App\Dto\LinkDefinition;
+use App\Exception\NotificationFailedException;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Mime\Email;
 use Symfony\Component\Notifier\ChatterInterface;
@@ -16,6 +17,13 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class LinkNotificationService
 {
+    private const float WEBHOOK_TIMEOUT = 10.0;
+
+    private const int SMS_MAX_LENGTH = 1600;
+    private const int SLACK_MAX_LENGTH = 40000;
+    private const int DISCORD_MAX_LENGTH = 2000;
+    private const int TELEGRAM_MAX_LENGTH = 4096;
+
     public function __construct(
         private readonly LinkConfigLoader $configLoader,
         private readonly MessageBuilder $messageBuilder,
@@ -23,16 +31,20 @@ class LinkNotificationService
         private readonly TexterInterface $texter,
         private readonly MailerInterface $mailer,
         private readonly HttpClientInterface $httpClient,
+        private readonly LoggerInterface $logger,
         private readonly string $slackWebhookUrl,
     ) {
     }
 
     /**
      * Loads config, builds message, dispatches to all configured channels.
+     * Continues dispatching even if individual transports fail.
      *
      * @param array<string, string> $queryParams
      *
      * @return string[] List of transport names that were notified
+     *
+     * @throws NotificationFailedException When one or more transports fail
      */
     public function send(string $linkName, array $queryParams): array
     {
@@ -40,11 +52,39 @@ class LinkNotificationService
         $resolved = $this->messageBuilder->resolveParameters($link, $queryParams);
         $message = $this->messageBuilder->buildMessage($link, $resolved);
 
+        $this->logger->info('Dispatching notification for link "{link}"', [
+            'link' => $linkName,
+            'transports' => array_map(
+                static fn (ChannelDefinition $ch) => $ch->transport,
+                $link->channels,
+            ),
+        ]);
+
         $notified = [];
+        /** @var array<string, string> $failures */
+        $failures = [];
 
         foreach ($link->channels as $channel) {
-            $this->dispatch($channel, $message, $link, $resolved);
-            $notified[] = $channel->transport;
+            try {
+                $this->dispatch($channel, $message, $resolved);
+                $notified[] = $channel->transport;
+                $this->logger->info('Successfully dispatched to "{transport}" for link "{link}"', [
+                    'transport' => $channel->transport,
+                    'link' => $linkName,
+                ]);
+            } catch (\Throwable $e) {
+                $failures[$channel->transport] = $e->getMessage();
+                $this->logger->error('Failed to dispatch to "{transport}" for link "{link}": {error}', [
+                    'transport' => $channel->transport,
+                    'link' => $linkName,
+                    'error' => $e->getMessage(),
+                    'exception' => $e,
+                ]);
+            }
+        }
+
+        if ([] !== $failures) {
+            throw new NotificationFailedException($linkName, $notified, $failures);
         }
 
         return $notified;
@@ -56,14 +96,13 @@ class LinkNotificationService
     private function dispatch(
         ChannelDefinition $channel,
         string $message,
-        LinkDefinition $link,
         array $resolvedParams,
     ): void {
         match ($channel->transport) {
             'slack-webhook' => $this->sendSlackWebhook($message),
             'slack', 'telegram', 'discord' => $this->sendChat($channel, $message),
             'sms' => $this->sendSms($channel, $message),
-            'email' => $this->sendEmail($channel, $message, $link, $resolvedParams),
+            'email' => $this->sendEmail($channel, $message, $resolvedParams),
             default => throw new \RuntimeException(\sprintf('Unsupported transport "%s".', $channel->transport)),
         };
     }
@@ -72,6 +111,7 @@ class LinkNotificationService
     {
         $response = $this->httpClient->request('POST', $this->slackWebhookUrl, [
             'json' => ['text' => $message],
+            'timeout' => self::WEBHOOK_TIMEOUT,
         ]);
 
         if (200 !== $response->getStatusCode()) {
@@ -85,6 +125,22 @@ class LinkNotificationService
 
     private function sendChat(ChannelDefinition $channel, string $message): void
     {
+        $maxLength = match ($channel->transport) {
+            'slack' => self::SLACK_MAX_LENGTH,
+            'discord' => self::DISCORD_MAX_LENGTH,
+            'telegram' => self::TELEGRAM_MAX_LENGTH,
+            default => null,
+        };
+
+        if (null !== $maxLength && mb_strlen($message) > $maxLength) {
+            $this->logger->warning('Message exceeds {transport} limit of {limit} chars (actual: {actual})', [
+                'transport' => $channel->transport,
+                'limit' => $maxLength,
+                'actual' => mb_strlen($message),
+            ]);
+            $message = mb_substr($message, 0, $maxLength - 3) . '...';
+        }
+
         $chatMessage = new ChatMessage($message);
         $chatMessage->transport($channel->transport);
         $this->chatter->send($chatMessage);
@@ -93,6 +149,15 @@ class LinkNotificationService
     private function sendSms(ChannelDefinition $channel, string $message): void
     {
         $to = $channel->options['to'] ?? throw new \RuntimeException('SMS channel requires "to" option.');
+
+        if (mb_strlen($message) > self::SMS_MAX_LENGTH) {
+            $this->logger->warning('SMS message exceeds {limit} chars (actual: {actual}), truncating', [
+                'limit' => self::SMS_MAX_LENGTH,
+                'actual' => mb_strlen($message),
+            ]);
+            $message = mb_substr($message, 0, self::SMS_MAX_LENGTH - 3) . '...';
+        }
+
         $smsMessage = new SmsMessage($to, $message);
         $smsMessage->transport('twilio');
         $this->texter->send($smsMessage);
@@ -104,15 +169,12 @@ class LinkNotificationService
     private function sendEmail(
         ChannelDefinition $channel,
         string $message,
-        LinkDefinition $link,
         array $resolvedParams,
     ): void {
         $to = $channel->options['to'] ?? throw new \RuntimeException('Email channel requires "to" option.');
         $subject = $channel->options['subject'] ?? $message;
-
-        foreach ($resolvedParams as $key => $value) {
-            $subject = str_replace('{' . $key . '}', $value, $subject);
-        }
+        $subject = $this->messageBuilder->interpolate($subject, $resolvedParams);
+        $subject = $this->sanitizeHeaderValue($subject);
 
         $email = (new Email())
             ->to($to)
@@ -120,5 +182,13 @@ class LinkNotificationService
             ->text($message);
 
         $this->mailer->send($email);
+    }
+
+    /**
+     * Strips CR/LF characters to prevent email header injection.
+     */
+    private function sanitizeHeaderValue(string $value): string
+    {
+        return str_replace(["\r\n", "\r", "\n"], ' ', $value);
     }
 }

@@ -26,3 +26,7 @@ services:
     App\Service\LinkNotificationService:
         arguments:
             $slackWebhookUrl: '%env(SLACK_WEBHOOK_URL)%'
+
+    App\Controller\NotifyController:
+        arguments:
+            $notifyLimiter: '@limiter.notify_limiter'
