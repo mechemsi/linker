@@ -371,4 +371,312 @@ class LinkNotificationServiceTest extends TestCase
 
         $service->send('test', ['msg' => 'hello']);
     }
+
+    #[Test]
+    public function slackWebhookNon200ResponseCausesFailure(): void
+    {
+        $link = new LinkDefinition(
+            name: 'test',
+            messageTemplate: '{msg}',
+            parameters: [new ParameterDefinition('msg', true, 'string')],
+            channels: [new ChannelDefinition('slack-webhook')],
+        );
+
+        $configLoader = $this->createStub(LinkConfigLoader::class);
+        $configLoader->method('getLink')->willReturn($link);
+
+        $response = $this->createStub(ResponseInterface::class);
+        $response->method('getStatusCode')->willReturn(403);
+        $response->method('getContent')->willReturn('invalid_token');
+
+        $httpClient = $this->createStub(HttpClientInterface::class);
+        $httpClient->method('request')->willReturn($response);
+
+        $service = new LinkNotificationService(
+            $configLoader,
+            new MessageBuilder(),
+            $this->createStub(ChatterInterface::class),
+            $this->createStub(TexterInterface::class),
+            $this->createStub(MailerInterface::class),
+            $httpClient,
+            $this->createStub(LoggerInterface::class),
+            'https://hooks.slack.com/services/test/test/test',
+        );
+
+        try {
+            $service->send('test', ['msg' => 'hello']);
+            $this->fail('Expected NotificationFailedException');
+        } catch (NotificationFailedException $e) {
+            $this->assertSame([], $e->getSucceededTransports());
+            $this->assertArrayHasKey('slack-webhook', $e->getFailedTransports());
+            $this->assertStringContainsString('403', $e->getFailedTransports()['slack-webhook']);
+        }
+    }
+
+    #[Test]
+    public function slackWebhookHttpExceptionCausesFailure(): void
+    {
+        $link = new LinkDefinition(
+            name: 'test',
+            messageTemplate: '{msg}',
+            parameters: [new ParameterDefinition('msg', true, 'string')],
+            channels: [new ChannelDefinition('slack-webhook')],
+        );
+
+        $configLoader = $this->createStub(LinkConfigLoader::class);
+        $configLoader->method('getLink')->willReturn($link);
+
+        $httpClient = $this->createStub(HttpClientInterface::class);
+        $httpClient->method('request')
+            ->willThrowException(new \RuntimeException('Connection timed out'));
+
+        $service = new LinkNotificationService(
+            $configLoader,
+            new MessageBuilder(),
+            $this->createStub(ChatterInterface::class),
+            $this->createStub(TexterInterface::class),
+            $this->createStub(MailerInterface::class),
+            $httpClient,
+            $this->createStub(LoggerInterface::class),
+            'https://hooks.slack.com/services/test/test/test',
+        );
+
+        try {
+            $service->send('test', ['msg' => 'hello']);
+            $this->fail('Expected NotificationFailedException');
+        } catch (NotificationFailedException $e) {
+            $this->assertSame([], $e->getSucceededTransports());
+            $this->assertStringContainsString('Connection timed out', $e->getFailedTransports()['slack-webhook']);
+        }
+    }
+
+    #[Test]
+    public function smsMissingToOptionCausesFailure(): void
+    {
+        $link = new LinkDefinition(
+            name: 'test',
+            messageTemplate: '{msg}',
+            parameters: [new ParameterDefinition('msg', true, 'string')],
+            channels: [new ChannelDefinition('sms')],
+        );
+
+        $configLoader = $this->createStub(LinkConfigLoader::class);
+        $configLoader->method('getLink')->willReturn($link);
+
+        $service = new LinkNotificationService(
+            $configLoader,
+            new MessageBuilder(),
+            $this->createStub(ChatterInterface::class),
+            $this->createStub(TexterInterface::class),
+            $this->createStub(MailerInterface::class),
+            $this->createStub(HttpClientInterface::class),
+            $this->createStub(LoggerInterface::class),
+            'https://hooks.slack.com/services/test/test/test',
+        );
+
+        try {
+            $service->send('test', ['msg' => 'hello']);
+            $this->fail('Expected NotificationFailedException');
+        } catch (NotificationFailedException $e) {
+            $this->assertStringContainsString('SMS channel requires "to" option', $e->getFailedTransports()['sms']);
+        }
+    }
+
+    #[Test]
+    public function smsTexterExceptionCausesFailure(): void
+    {
+        $link = new LinkDefinition(
+            name: 'test',
+            messageTemplate: '{msg}',
+            parameters: [new ParameterDefinition('msg', true, 'string')],
+            channels: [new ChannelDefinition('sms', ['to' => '+1234567890'])],
+        );
+
+        $configLoader = $this->createStub(LinkConfigLoader::class);
+        $configLoader->method('getLink')->willReturn($link);
+
+        $texter = $this->createStub(TexterInterface::class);
+        $texter->method('send')
+            ->willThrowException(new \RuntimeException('Twilio service unavailable'));
+
+        $service = new LinkNotificationService(
+            $configLoader,
+            new MessageBuilder(),
+            $this->createStub(ChatterInterface::class),
+            $texter,
+            $this->createStub(MailerInterface::class),
+            $this->createStub(HttpClientInterface::class),
+            $this->createStub(LoggerInterface::class),
+            'https://hooks.slack.com/services/test/test/test',
+        );
+
+        try {
+            $service->send('test', ['msg' => 'hello']);
+            $this->fail('Expected NotificationFailedException');
+        } catch (NotificationFailedException $e) {
+            $this->assertStringContainsString('Twilio service unavailable', $e->getFailedTransports()['sms']);
+        }
+    }
+
+    #[Test]
+    public function emailMissingToOptionCausesFailure(): void
+    {
+        $link = new LinkDefinition(
+            name: 'test',
+            messageTemplate: '{msg}',
+            parameters: [new ParameterDefinition('msg', true, 'string')],
+            channels: [new ChannelDefinition('email')],
+        );
+
+        $configLoader = $this->createStub(LinkConfigLoader::class);
+        $configLoader->method('getLink')->willReturn($link);
+
+        $service = new LinkNotificationService(
+            $configLoader,
+            new MessageBuilder(),
+            $this->createStub(ChatterInterface::class),
+            $this->createStub(TexterInterface::class),
+            $this->createStub(MailerInterface::class),
+            $this->createStub(HttpClientInterface::class),
+            $this->createStub(LoggerInterface::class),
+            'https://hooks.slack.com/services/test/test/test',
+        );
+
+        try {
+            $service->send('test', ['msg' => 'hello']);
+            $this->fail('Expected NotificationFailedException');
+        } catch (NotificationFailedException $e) {
+            $this->assertStringContainsString('Email channel requires "to" option', $e->getFailedTransports()['email']);
+        }
+    }
+
+    #[Test]
+    public function emailMailerExceptionCausesFailure(): void
+    {
+        $link = new LinkDefinition(
+            name: 'test',
+            messageTemplate: '{msg}',
+            parameters: [new ParameterDefinition('msg', true, 'string')],
+            channels: [new ChannelDefinition('email', [
+                'to' => 'team@example.com',
+                'subject' => 'Test',
+            ])],
+        );
+
+        $configLoader = $this->createStub(LinkConfigLoader::class);
+        $configLoader->method('getLink')->willReturn($link);
+
+        $mailer = $this->createStub(MailerInterface::class);
+        $mailer->method('send')
+            ->willThrowException(new \RuntimeException('SMTP connection refused'));
+
+        $service = new LinkNotificationService(
+            $configLoader,
+            new MessageBuilder(),
+            $this->createStub(ChatterInterface::class),
+            $this->createStub(TexterInterface::class),
+            $mailer,
+            $this->createStub(HttpClientInterface::class),
+            $this->createStub(LoggerInterface::class),
+            'https://hooks.slack.com/services/test/test/test',
+        );
+
+        try {
+            $service->send('test', ['msg' => 'hello']);
+            $this->fail('Expected NotificationFailedException');
+        } catch (NotificationFailedException $e) {
+            $this->assertStringContainsString('SMTP connection refused', $e->getFailedTransports()['email']);
+        }
+    }
+
+    #[Test]
+    public function allTransportsFailReportsAllFailures(): void
+    {
+        $link = new LinkDefinition(
+            name: 'test',
+            messageTemplate: '{msg}',
+            parameters: [new ParameterDefinition('msg', true, 'string')],
+            channels: [
+                new ChannelDefinition('slack'),
+                new ChannelDefinition('email', ['to' => 'a@b.com']),
+            ],
+        );
+
+        $configLoader = $this->createStub(LinkConfigLoader::class);
+        $configLoader->method('getLink')->willReturn($link);
+
+        $chatter = $this->createStub(ChatterInterface::class);
+        $chatter->method('send')
+            ->willThrowException(new \RuntimeException('Slack down'));
+
+        $mailer = $this->createStub(MailerInterface::class);
+        $mailer->method('send')
+            ->willThrowException(new \RuntimeException('SMTP timeout'));
+
+        $service = new LinkNotificationService(
+            $configLoader,
+            new MessageBuilder(),
+            $chatter,
+            $this->createStub(TexterInterface::class),
+            $mailer,
+            $this->createStub(HttpClientInterface::class),
+            $this->createStub(LoggerInterface::class),
+            'https://hooks.slack.com/services/test/test/test',
+        );
+
+        try {
+            $service->send('test', ['msg' => 'hello']);
+            $this->fail('Expected NotificationFailedException');
+        } catch (NotificationFailedException $e) {
+            $this->assertSame([], $e->getSucceededTransports());
+            $this->assertCount(2, $e->getFailedTransports());
+            $this->assertArrayHasKey('slack', $e->getFailedTransports());
+            $this->assertArrayHasKey('email', $e->getFailedTransports());
+        }
+    }
+
+    #[Test]
+    public function mixedTransportSuccessAndFailureAcrossDifferentTypes(): void
+    {
+        $link = new LinkDefinition(
+            name: 'test',
+            messageTemplate: '{msg}',
+            parameters: [new ParameterDefinition('msg', true, 'string')],
+            channels: [
+                new ChannelDefinition('slack'),
+                new ChannelDefinition('sms', ['to' => '+1234567890']),
+                new ChannelDefinition('email', ['to' => 'a@b.com']),
+            ],
+        );
+
+        $configLoader = $this->createStub(LinkConfigLoader::class);
+        $configLoader->method('getLink')->willReturn($link);
+
+        $chatter = $this->createStub(ChatterInterface::class);
+
+        $texter = $this->createStub(TexterInterface::class);
+        $texter->method('send')
+            ->willThrowException(new \RuntimeException('Twilio error'));
+
+        $mailer = $this->createStub(MailerInterface::class);
+
+        $service = new LinkNotificationService(
+            $configLoader,
+            new MessageBuilder(),
+            $chatter,
+            $texter,
+            $mailer,
+            $this->createStub(HttpClientInterface::class),
+            $this->createStub(LoggerInterface::class),
+            'https://hooks.slack.com/services/test/test/test',
+        );
+
+        try {
+            $service->send('test', ['msg' => 'hello']);
+            $this->fail('Expected NotificationFailedException');
+        } catch (NotificationFailedException $e) {
+            $this->assertSame(['slack', 'email'], $e->getSucceededTransports());
+            $this->assertSame(['sms' => 'Twilio error'], $e->getFailedTransports());
+        }
+    }
 }
