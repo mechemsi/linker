@@ -17,6 +17,8 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class LinkNotificationService
 {
+    private const float WEBHOOK_TIMEOUT = 10.0;
+
     public function __construct(
         private readonly LinkConfigLoader $configLoader,
         private readonly MessageBuilder $messageBuilder,
@@ -104,6 +106,7 @@ class LinkNotificationService
     {
         $response = $this->httpClient->request('POST', $this->slackWebhookUrl, [
             'json' => ['text' => $message],
+            'timeout' => self::WEBHOOK_TIMEOUT,
         ]);
 
         if (200 !== $response->getStatusCode()) {
