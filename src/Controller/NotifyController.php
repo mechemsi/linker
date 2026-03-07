@@ -8,6 +8,7 @@ use App\Exception\InvalidParametersException;
 use App\Exception\LinkNotFoundException;
 use App\Exception\NotificationFailedException;
 use App\Service\LinkNotificationService;
+use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -18,15 +19,29 @@ class NotifyController extends AbstractController
 {
     public function __construct(
         private readonly LinkNotificationService $notificationService,
+        private readonly LoggerInterface $logger,
     ) {
     }
 
     #[Route('/notify/{linkName}', name: 'app_notify', methods: ['GET', 'POST'])]
     public function __invoke(string $linkName, Request $request): JsonResponse
     {
+        $queryParams = $request->query->all();
+
+        $this->logger->info('Incoming notification request for link "{link}"', [
+            'link' => $linkName,
+            'method' => $request->getMethod(),
+            'parameters' => $queryParams,
+            'client_ip' => $request->getClientIp(),
+        ]);
+
         try {
-            $queryParams = $request->query->all();
             $notified = $this->notificationService->send($linkName, $queryParams);
+
+            $this->logger->info('Notification request completed for link "{link}"', [
+                'link' => $linkName,
+                'channels_notified' => $notified,
+            ]);
 
             return $this->json([
                 'status' => 'ok',
@@ -34,6 +49,12 @@ class NotifyController extends AbstractController
                 'channels_notified' => $notified,
             ]);
         } catch (NotificationFailedException $e) {
+            $this->logger->warning('Notification partially failed for link "{link}"', [
+                'link' => $linkName,
+                'channels_notified' => $e->getSucceededTransports(),
+                'channels_failed' => $e->getFailedTransports(),
+            ]);
+
             return $this->json([
                 'status' => 'partial_failure',
                 'link' => $linkName,
@@ -41,17 +62,32 @@ class NotifyController extends AbstractController
                 'channels_failed' => $e->getFailedTransports(),
             ], Response::HTTP_MULTI_STATUS);
         } catch (LinkNotFoundException $e) {
+            $this->logger->warning('Notification request for unknown link "{link}"', [
+                'link' => $linkName,
+            ]);
+
             return $this->json([
                 'status' => 'error',
                 'message' => $e->getMessage(),
             ], Response::HTTP_NOT_FOUND);
         } catch (InvalidParametersException $e) {
+            $this->logger->warning('Notification request with invalid parameters for link "{link}"', [
+                'link' => $linkName,
+                'errors' => $e->getErrors(),
+            ]);
+
             return $this->json([
                 'status' => 'error',
                 'message' => $e->getMessage(),
                 'errors' => $e->getErrors(),
             ], Response::HTTP_BAD_REQUEST);
         } catch (\Throwable $e) {
+            $this->logger->error('Unexpected error during notification for link "{link}": {error}', [
+                'link' => $linkName,
+                'error' => $e->getMessage(),
+                'exception' => $e,
+            ]);
+
             return $this->json([
                 'status' => 'error',
                 'message' => 'Failed to dispatch notification: ' . $e->getMessage(),

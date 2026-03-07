@@ -11,15 +11,18 @@ use App\Exception\NotificationFailedException;
 use App\Service\LinkNotificationService;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 class NotifyControllerTest extends TestCase
 {
-    private function createController(LinkNotificationService $service): NotifyController
-    {
-        $controller = new NotifyController($service);
+    private function createController(
+        LinkNotificationService $service,
+        ?LoggerInterface $logger = null,
+    ): NotifyController {
+        $controller = new NotifyController($service, $logger ?? $this->createStub(LoggerInterface::class));
 
         $container = $this->createStub(ContainerInterface::class);
         $container->method('has')->willReturn(false);
@@ -126,6 +129,50 @@ class NotifyControllerTest extends TestCase
         $data = json_decode((string) $response->getContent(), true);
         $this->assertSame('error', $data['status']);
         $this->assertStringContainsString('Something broke', $data['message']);
+    }
+
+    #[Test]
+    public function requestAndResponseAreLogged(): void
+    {
+        $service = $this->createStub(LinkNotificationService::class);
+        $service->method('send')->willReturn(['slack']);
+
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects($this->exactly(2))
+            ->method('info')
+            ->with(
+                $this->logicalOr(
+                    $this->stringContains('Incoming notification request'),
+                    $this->stringContains('Notification request completed'),
+                ),
+                $this->isType('array'),
+            );
+
+        $controller = $this->createController($service, $logger);
+        $request = Request::create('/notify/test-link', 'GET', ['msg' => 'hello']);
+        $controller('test-link', $request);
+    }
+
+    #[Test]
+    public function errorResponsesAreLogged(): void
+    {
+        $service = $this->createStub(LinkNotificationService::class);
+        $service->method('send')
+            ->willThrowException(new \RuntimeException('Boom'));
+
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects($this->once())->method('info');
+        $logger->expects($this->once())
+            ->method('error')
+            ->with(
+                $this->stringContains('Unexpected error'),
+                $this->callback(static fn (array $ctx) => 'test-link' === $ctx['link']
+                    && 'Boom' === $ctx['error']),
+            );
+
+        $controller = $this->createController($service, $logger);
+        $request = Request::create('/notify/test-link', 'GET', ['msg' => 'hello']);
+        $controller('test-link', $request);
     }
 
     #[Test]
