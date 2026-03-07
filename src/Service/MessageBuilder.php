@@ -48,12 +48,20 @@ class MessageBuilder
      */
     public function buildMessage(LinkDefinition $link, array $parameters): string
     {
-        $message = $link->messageTemplate;
+        return $this->interpolate($link->messageTemplate, $parameters);
+    }
 
+    /**
+     * Interpolates {placeholder} tokens in an arbitrary template string.
+     *
+     * @param array<string, string> $parameters
+     */
+    public function interpolate(string $template, array $parameters): string
+    {
         foreach ($parameters as $key => $value) {
-            $message = str_replace('{' . $key . '}', $value, $message);
+            $template = str_replace('{' . $key . '}', $value, $template);
         }
 
-        return $message;
+        return $template;
     }
 }

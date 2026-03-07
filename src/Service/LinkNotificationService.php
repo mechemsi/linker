@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Dto\ChannelDefinition;
-use App\Dto\LinkDefinition;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Mime\Email;
 use Symfony\Component\Notifier\ChatterInterface;
@@ -43,7 +42,7 @@ class LinkNotificationService
         $notified = [];
 
         foreach ($link->channels as $channel) {
-            $this->dispatch($channel, $message, $link, $resolved);
+            $this->dispatch($channel, $message, $resolved);
             $notified[] = $channel->transport;
         }
 
@@ -56,14 +55,13 @@ class LinkNotificationService
     private function dispatch(
         ChannelDefinition $channel,
         string $message,
-        LinkDefinition $link,
         array $resolvedParams,
     ): void {
         match ($channel->transport) {
             'slack-webhook' => $this->sendSlackWebhook($message),
             'slack', 'telegram', 'discord' => $this->sendChat($channel, $message),
             'sms' => $this->sendSms($channel, $message),
-            'email' => $this->sendEmail($channel, $message, $link, $resolvedParams),
+            'email' => $this->sendEmail($channel, $message, $resolvedParams),
             default => throw new \RuntimeException(\sprintf('Unsupported transport "%s".', $channel->transport)),
         };
     }
@@ -104,15 +102,11 @@ class LinkNotificationService
     private function sendEmail(
         ChannelDefinition $channel,
         string $message,
-        LinkDefinition $link,
         array $resolvedParams,
     ): void {
         $to = $channel->options['to'] ?? throw new \RuntimeException('Email channel requires "to" option.');
         $subject = $channel->options['subject'] ?? $message;
-
-        foreach ($resolvedParams as $key => $value) {
-            $subject = str_replace('{' . $key . '}', $value, $subject);
-        }
+        $subject = $this->messageBuilder->interpolate($subject, $resolvedParams);
 
         $email = (new Email())
             ->to($to)
