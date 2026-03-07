@@ -121,6 +121,27 @@ class LinkConfigLoader
     }
 
     /**
+     * Validates that all {placeholders} in the template have matching parameter definitions.
+     *
+     * @param array<string, mixed> $parameters
+     * @param string[]             $errors
+     */
+    private function validatePlaceholders(string $template, array $parameters, array &$errors): void
+    {
+        if (preg_match_all('/\{(\w+)\}/', $template, $matches)) {
+            $paramNames = array_keys($parameters);
+            $undefinedPlaceholders = array_diff($matches[1], $paramNames);
+
+            foreach ($undefinedPlaceholders as $placeholder) {
+                $errors[] = \sprintf(
+                    'Template placeholder "{%s}" has no matching parameter definition',
+                    $placeholder,
+                );
+            }
+        }
+    }
+
+    /**
      * @param array<string, mixed> $data
      *
      * @throws InvalidLinkConfigException
@@ -159,6 +180,13 @@ class LinkConfigLoader
 
         if (isset($data['parameters']) && !\is_array($data['parameters'])) {
             $errors[] = '"parameters" must be an array if provided';
+        }
+
+        if (
+            isset($data['message_template']) && \is_string($data['message_template'])
+            && isset($data['parameters']) && \is_array($data['parameters'])
+        ) {
+            $this->validatePlaceholders($data['message_template'], $data['parameters'], $errors);
         }
 
         if ([] !== $errors) {

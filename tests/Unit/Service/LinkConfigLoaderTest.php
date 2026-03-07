@@ -277,6 +277,89 @@ YAML);
     }
 
     #[Test]
+    public function itThrowsOnUndefinedTemplatePlaceholder(): void
+    {
+        file_put_contents($this->tmpDir . '/bad.yaml', <<<'YAML'
+parameters:
+    name:
+        required: true
+        type: string
+message_template: 'Hello {name}, your {item} is ready'
+channels:
+    - transport: slack
+YAML);
+
+        $loader = new LinkConfigLoader($this->tmpDir);
+
+        try {
+            $loader->getLink('bad');
+            $this->fail('Expected InvalidLinkConfigException');
+        } catch (InvalidLinkConfigException $e) {
+            $this->assertCount(1, $e->getErrors());
+            $this->assertStringContainsString('{item}', $e->getErrors()[0]);
+            $this->assertStringContainsString('no matching parameter definition', $e->getErrors()[0]);
+        }
+    }
+
+    #[Test]
+    public function itThrowsOnMultipleUndefinedPlaceholders(): void
+    {
+        file_put_contents($this->tmpDir . '/bad.yaml', <<<'YAML'
+parameters: {}
+message_template: '{greeting} {name}, welcome to {place}'
+channels:
+    - transport: slack
+YAML);
+
+        $loader = new LinkConfigLoader($this->tmpDir);
+
+        try {
+            $loader->getLink('bad');
+            $this->fail('Expected InvalidLinkConfigException');
+        } catch (InvalidLinkConfigException $e) {
+            $this->assertCount(3, $e->getErrors());
+        }
+    }
+
+    #[Test]
+    public function itAcceptsTemplateWithAllPlaceholdersDefined(): void
+    {
+        file_put_contents($this->tmpDir . '/good.yaml', <<<'YAML'
+parameters:
+    server:
+        required: true
+        type: string
+    status:
+        required: true
+        type: string
+message_template: '[{status}] Server {server}'
+channels:
+    - transport: slack
+YAML);
+
+        $loader = new LinkConfigLoader($this->tmpDir);
+        $link = $loader->getLink('good');
+
+        $this->assertSame('[{status}] Server {server}', $link->messageTemplate);
+    }
+
+    #[Test]
+    public function itAcceptsTemplateWithNoPlaceholders(): void
+    {
+        file_put_contents($this->tmpDir . '/static.yaml', <<<'YAML'
+parameters: {}
+message_template: 'Static message with no placeholders'
+channels:
+    - transport: slack
+YAML);
+
+        $loader = new LinkConfigLoader($this->tmpDir);
+        $link = $loader->getLink('static');
+
+        $this->assertSame('Static message with no placeholders', $link->messageTemplate);
+    }
+
+    #[Test]
     public function itCollectsMultipleValidationErrors(): void
     {
         file_put_contents($this->tmpDir . '/bad.yaml', <<<'YAML'
