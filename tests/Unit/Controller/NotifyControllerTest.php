@@ -65,6 +65,20 @@ class NotifyControllerTest extends TestCase
         return $controller;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    private function decodeResponse(Response $response): array
+    {
+        return json_decode((string) $response->getContent(), true);
+    }
+
+    private function assertHasValidRequestId(array $data): void
+    {
+        $this->assertArrayHasKey('request_id', $data);
+        $this->assertMatchesRegularExpression('/^[0-9a-f]{32}$/', $data['request_id']);
+    }
+
     #[Test]
     public function successfulNotificationReturns200(): void
     {
@@ -77,10 +91,11 @@ class NotifyControllerTest extends TestCase
 
         $this->assertSame(Response::HTTP_OK, $response->getStatusCode());
 
-        $data = json_decode((string) $response->getContent(), true);
+        $data = $this->decodeResponse($response);
         $this->assertSame('ok', $data['status']);
         $this->assertSame('test-link', $data['link']);
         $this->assertSame(['slack', 'telegram'], $data['channels_notified']);
+        $this->assertHasValidRequestId($data);
     }
 
     #[Test]
@@ -96,9 +111,10 @@ class NotifyControllerTest extends TestCase
 
         $this->assertSame(Response::HTTP_NOT_FOUND, $response->getStatusCode());
 
-        $data = json_decode((string) $response->getContent(), true);
+        $data = $this->decodeResponse($response);
         $this->assertSame('error', $data['status']);
         $this->assertStringContainsString('unknown', $data['message']);
+        $this->assertHasValidRequestId($data);
     }
 
     #[Test]
@@ -117,10 +133,11 @@ class NotifyControllerTest extends TestCase
 
         $this->assertSame(Response::HTTP_BAD_REQUEST, $response->getStatusCode());
 
-        $data = json_decode((string) $response->getContent(), true);
+        $data = $this->decodeResponse($response);
         $this->assertSame('error', $data['status']);
         $this->assertCount(2, $data['errors']);
         $this->assertStringContainsString('server', $data['errors'][0]);
+        $this->assertHasValidRequestId($data);
     }
 
     #[Test]
@@ -140,11 +157,12 @@ class NotifyControllerTest extends TestCase
 
         $this->assertSame(Response::HTTP_MULTI_STATUS, $response->getStatusCode());
 
-        $data = json_decode((string) $response->getContent(), true);
+        $data = $this->decodeResponse($response);
         $this->assertSame('partial_failure', $data['status']);
         $this->assertSame('test-link', $data['link']);
         $this->assertSame(['telegram'], $data['channels_notified']);
         $this->assertSame(['slack' => 'Slack API error'], $data['channels_failed']);
+        $this->assertHasValidRequestId($data);
     }
 
     #[Test]
@@ -160,9 +178,10 @@ class NotifyControllerTest extends TestCase
 
         $this->assertSame(Response::HTTP_INTERNAL_SERVER_ERROR, $response->getStatusCode());
 
-        $data = json_decode((string) $response->getContent(), true);
+        $data = $this->decodeResponse($response);
         $this->assertSame('error', $data['status']);
         $this->assertStringContainsString('Something broke', $data['message']);
+        $this->assertHasValidRequestId($data);
     }
 
     #[Test]
@@ -179,7 +198,8 @@ class NotifyControllerTest extends TestCase
                     $this->stringContains('Incoming notification request'),
                     $this->stringContains('Notification request completed'),
                 ),
-                $this->isType('array'),
+                $this->callback(static fn (array $ctx) => isset($ctx['request_id'])
+                    && 1 === preg_match('/^[0-9a-f]{32}$/', $ctx['request_id'])),
             );
 
         $controller = $this->createController($service, $logger);
@@ -201,7 +221,8 @@ class NotifyControllerTest extends TestCase
             ->with(
                 $this->stringContains('Unexpected error'),
                 $this->callback(static fn (array $ctx) => 'test-link' === $ctx['link']
-                    && 'Boom' === $ctx['error']),
+                    && 'Boom' === $ctx['error']
+                    && isset($ctx['request_id'])),
             );
 
         $controller = $this->createController($service, $logger);
@@ -239,9 +260,10 @@ class NotifyControllerTest extends TestCase
 
         $this->assertSame(Response::HTTP_TOO_MANY_REQUESTS, $response->getStatusCode());
 
-        $data = json_decode((string) $response->getContent(), true);
+        $data = $this->decodeResponse($response);
         $this->assertSame('error', $data['status']);
         $this->assertStringContainsString('Rate limit exceeded', $data['message']);
+        $this->assertHasValidRequestId($data);
     }
 
     #[Test]
@@ -265,11 +287,32 @@ class NotifyControllerTest extends TestCase
             ->method('warning')
             ->with(
                 $this->stringContains('Rate limit exceeded'),
-                $this->callback(static fn (array $ctx) => 'test-link' === $ctx['link']),
+                $this->callback(static fn (array $ctx) => 'test-link' === $ctx['link']
+                    && isset($ctx['request_id'])),
             );
 
         $controller = $this->createController($service, $logger, $this->createRejectedRateLimiter());
         $request = Request::create('/notify/test-link', 'GET', ['msg' => 'hello']);
         $controller('test-link', $request);
+    }
+
+    #[Test]
+    public function requestIdIsUniquePerRequest(): void
+    {
+        $service = $this->createStub(LinkNotificationService::class);
+        $service->method('send')->willReturn(['slack']);
+
+        $controller = $this->createController($service);
+
+        $request1 = Request::create('/notify/test-link', 'GET', ['msg' => 'hello']);
+        $response1 = $controller('test-link', $request1);
+
+        $request2 = Request::create('/notify/test-link', 'GET', ['msg' => 'world']);
+        $response2 = $controller('test-link', $request2);
+
+        $data1 = $this->decodeResponse($response1);
+        $data2 = $this->decodeResponse($response2);
+
+        $this->assertNotSame($data1['request_id'], $data2['request_id']);
     }
 }
