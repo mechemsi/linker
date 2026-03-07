@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Service;
 use App\Dto\ChannelDefinition;
 use App\Dto\LinkDefinition;
 use App\Dto\ParameterDefinition;
+use App\Exception\InvalidLinkConfigException;
 use App\Exception\LinkNotFoundException;
 use App\Service\LinkConfigLoader;
 use PHPUnit\Framework\Attributes\Test;
@@ -92,7 +93,8 @@ YAML);
         file_put_contents($this->tmpDir . '/existing.yaml', <<<'YAML'
 parameters: {}
 message_template: 'test'
-channels: []
+channels:
+    - transport: slack
 YAML);
 
         $loader = new LinkConfigLoader($this->tmpDir);
@@ -151,12 +153,14 @@ YAML);
         file_put_contents($this->tmpDir . '/link-a.yaml', <<<'YAML'
 parameters: {}
 message_template: 'A'
-channels: []
+channels:
+    - transport: slack
 YAML);
         file_put_contents($this->tmpDir . '/link-b.yaml', <<<'YAML'
 parameters: {}
 message_template: 'B'
-channels: []
+channels:
+    - transport: slack
 YAML);
 
         $loader = new LinkConfigLoader($this->tmpDir);
@@ -173,7 +177,8 @@ YAML);
         file_put_contents($this->tmpDir . '/cached.yaml', <<<'YAML'
 parameters: {}
 message_template: 'cached'
-channels: []
+channels:
+    - transport: slack
 YAML);
 
         $loader = new LinkConfigLoader($this->tmpDir);
@@ -182,5 +187,112 @@ YAML);
         $second = $loader->getAllLinks();
 
         $this->assertSame($first, $second);
+    }
+
+    #[Test]
+    public function itThrowsOnMissingMessageTemplate(): void
+    {
+        file_put_contents($this->tmpDir . '/bad.yaml', <<<'YAML'
+parameters: {}
+channels:
+    - transport: slack
+YAML);
+
+        $loader = new LinkConfigLoader($this->tmpDir);
+
+        $this->expectException(InvalidLinkConfigException::class);
+        $this->expectExceptionMessage('Missing or invalid "message_template"');
+
+        $loader->getLink('bad');
+    }
+
+    #[Test]
+    public function itThrowsOnMissingChannels(): void
+    {
+        file_put_contents($this->tmpDir . '/bad.yaml', <<<'YAML'
+parameters: {}
+message_template: 'test'
+YAML);
+
+        $loader = new LinkConfigLoader($this->tmpDir);
+
+        $this->expectException(InvalidLinkConfigException::class);
+        $this->expectExceptionMessage('Missing or invalid "channels"');
+
+        $loader->getLink('bad');
+    }
+
+    #[Test]
+    public function itThrowsOnEmptyChannels(): void
+    {
+        file_put_contents($this->tmpDir . '/bad.yaml', <<<'YAML'
+parameters: {}
+message_template: 'test'
+channels: []
+YAML);
+
+        $loader = new LinkConfigLoader($this->tmpDir);
+
+        $this->expectException(InvalidLinkConfigException::class);
+        $this->expectExceptionMessage('"channels" must not be empty');
+
+        $loader->getLink('bad');
+    }
+
+    #[Test]
+    public function itThrowsOnChannelMissingTransport(): void
+    {
+        file_put_contents($this->tmpDir . '/bad.yaml', <<<'YAML'
+parameters: {}
+message_template: 'test'
+channels:
+    - options:
+          to: 'someone@example.com'
+YAML);
+
+        $loader = new LinkConfigLoader($this->tmpDir);
+
+        $this->expectException(InvalidLinkConfigException::class);
+        $this->expectExceptionMessage('missing required "transport" key');
+
+        $loader->getLink('bad');
+    }
+
+    #[Test]
+    public function itThrowsOnUnsupportedTransport(): void
+    {
+        file_put_contents($this->tmpDir . '/bad.yaml', <<<'YAML'
+parameters: {}
+message_template: 'test'
+channels:
+    - transport: pigeon
+YAML);
+
+        $loader = new LinkConfigLoader($this->tmpDir);
+
+        $this->expectException(InvalidLinkConfigException::class);
+        $this->expectExceptionMessage('unsupported transport "pigeon"');
+
+        $loader->getLink('bad');
+    }
+
+    #[Test]
+    public function itCollectsMultipleValidationErrors(): void
+    {
+        file_put_contents($this->tmpDir . '/bad.yaml', <<<'YAML'
+parameters: {}
+YAML);
+
+        $loader = new LinkConfigLoader($this->tmpDir);
+
+        try {
+            $loader->getLink('bad');
+            $this->fail('Expected InvalidLinkConfigException');
+        } catch (InvalidLinkConfigException $e) {
+            $this->assertSame('bad', $e->getLinkName());
+            $this->assertCount(2, $e->getErrors());
+            $this->assertStringContainsString('message_template', $e->getErrors()[0]);
+            $this->assertStringContainsString('channels', $e->getErrors()[1]);
+        }
     }
 }
