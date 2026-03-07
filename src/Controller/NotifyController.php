@@ -6,6 +6,7 @@ namespace App\Controller;
 
 use App\Exception\InvalidParametersException;
 use App\Exception\LinkNotFoundException;
+use App\Exception\NotificationFailedException;
 use App\Service\LinkNotificationService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -32,6 +33,13 @@ class NotifyController extends AbstractController
                 'link' => $linkName,
                 'channels_notified' => $notified,
             ]);
+        } catch (NotificationFailedException $e) {
+            return $this->json([
+                'status' => 'partial_failure',
+                'link' => $linkName,
+                'channels_notified' => $e->getSucceededTransports(),
+                'channels_failed' => $e->getFailedTransports(),
+            ], Response::HTTP_MULTI_STATUS);
         } catch (LinkNotFoundException $e) {
             return $this->json([
                 'status' => 'error',

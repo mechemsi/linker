@@ -8,11 +8,13 @@ use App\Dto\ChannelDefinition;
 use App\Dto\LinkDefinition;
 use App\Dto\ParameterDefinition;
 use App\Exception\LinkNotFoundException;
+use App\Exception\NotificationFailedException;
 use App\Service\LinkConfigLoader;
 use App\Service\LinkNotificationService;
 use App\Service\MessageBuilder;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Mime\Email;
 use Symfony\Component\Notifier\ChatterInterface;
@@ -50,6 +52,7 @@ class LinkNotificationServiceTest extends TestCase
             $this->createStub(TexterInterface::class),
             $this->createStub(MailerInterface::class),
             $this->createStub(HttpClientInterface::class),
+            $this->createStub(LoggerInterface::class),
             'https://hooks.slack.com/services/test/test/test',
         );
 
@@ -84,6 +87,7 @@ class LinkNotificationServiceTest extends TestCase
             $texter,
             $this->createStub(MailerInterface::class),
             $this->createStub(HttpClientInterface::class),
+            $this->createStub(LoggerInterface::class),
             'https://hooks.slack.com/services/test/test/test',
         );
 
@@ -124,6 +128,7 @@ class LinkNotificationServiceTest extends TestCase
             $this->createStub(TexterInterface::class),
             $mailer,
             $this->createStub(HttpClientInterface::class),
+            $this->createStub(LoggerInterface::class),
             'https://hooks.slack.com/services/test/test/test',
         );
 
@@ -167,6 +172,7 @@ class LinkNotificationServiceTest extends TestCase
             $this->createStub(TexterInterface::class),
             $this->createStub(MailerInterface::class),
             $httpClient,
+            $this->createStub(LoggerInterface::class),
             'https://hooks.slack.com/services/test/test/test',
         );
 
@@ -201,6 +207,7 @@ class LinkNotificationServiceTest extends TestCase
             $this->createStub(TexterInterface::class),
             $this->createStub(MailerInterface::class),
             $this->createStub(HttpClientInterface::class),
+            $this->createStub(LoggerInterface::class),
             'https://hooks.slack.com/services/test/test/test',
         );
 
@@ -223,11 +230,145 @@ class LinkNotificationServiceTest extends TestCase
             $this->createStub(TexterInterface::class),
             $this->createStub(MailerInterface::class),
             $this->createStub(HttpClientInterface::class),
+            $this->createStub(LoggerInterface::class),
             'https://hooks.slack.com/services/test/test/test',
         );
 
         $this->expectException(LinkNotFoundException::class);
 
         $service->send('missing', []);
+    }
+
+    #[Test]
+    public function sendThrowsNotificationFailedExceptionOnTransportFailure(): void
+    {
+        $link = new LinkDefinition(
+            name: 'test',
+            messageTemplate: '{msg}',
+            parameters: [new ParameterDefinition('msg', true, 'string')],
+            channels: [new ChannelDefinition('slack')],
+        );
+
+        $configLoader = $this->createStub(LinkConfigLoader::class);
+        $configLoader->method('getLink')->willReturn($link);
+
+        $chatter = $this->createStub(ChatterInterface::class);
+        $chatter->method('send')
+            ->willThrowException(new \RuntimeException('Slack API error'));
+
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects($this->once())
+            ->method('error')
+            ->with(
+                $this->stringContains('Failed to dispatch'),
+                $this->callback(static fn (array $ctx) => 'slack' === $ctx['transport']
+                    && 'test' === $ctx['link']
+                    && 'Slack API error' === $ctx['error']),
+            );
+
+        $service = new LinkNotificationService(
+            $configLoader,
+            new MessageBuilder(),
+            $chatter,
+            $this->createStub(TexterInterface::class),
+            $this->createStub(MailerInterface::class),
+            $this->createStub(HttpClientInterface::class),
+            $logger,
+            'https://hooks.slack.com/services/test/test/test',
+        );
+
+        try {
+            $service->send('test', ['msg' => 'hello']);
+            $this->fail('Expected NotificationFailedException');
+        } catch (NotificationFailedException $e) {
+            $this->assertSame('test', $e->getLinkName());
+            $this->assertSame([], $e->getSucceededTransports());
+            $this->assertSame(['slack' => 'Slack API error'], $e->getFailedTransports());
+        }
+    }
+
+    #[Test]
+    public function sendContinuesDispatchingAfterTransportFailure(): void
+    {
+        $link = new LinkDefinition(
+            name: 'test',
+            messageTemplate: '{msg}',
+            parameters: [new ParameterDefinition('msg', true, 'string')],
+            channels: [
+                new ChannelDefinition('slack'),
+                new ChannelDefinition('telegram'),
+            ],
+        );
+
+        $configLoader = $this->createStub(LinkConfigLoader::class);
+        $configLoader->method('getLink')->willReturn($link);
+
+        $callCount = 0;
+        $chatter = $this->createMock(ChatterInterface::class);
+        $chatter->expects($this->exactly(2))
+            ->method('send')
+            ->willReturnCallback(function () use (&$callCount): void {
+                $callCount++;
+                if (1 === $callCount) {
+                    throw new \RuntimeException('Slack down');
+                }
+            });
+
+        $service = new LinkNotificationService(
+            $configLoader,
+            new MessageBuilder(),
+            $chatter,
+            $this->createStub(TexterInterface::class),
+            $this->createStub(MailerInterface::class),
+            $this->createStub(HttpClientInterface::class),
+            $this->createStub(LoggerInterface::class),
+            'https://hooks.slack.com/services/test/test/test',
+        );
+
+        try {
+            $service->send('test', ['msg' => 'hello']);
+            $this->fail('Expected NotificationFailedException');
+        } catch (NotificationFailedException $e) {
+            $this->assertSame(['telegram'], $e->getSucceededTransports());
+            $this->assertSame(['slack' => 'Slack down'], $e->getFailedTransports());
+        }
+    }
+
+    #[Test]
+    public function sendLogsSuccessfulDispatches(): void
+    {
+        $link = new LinkDefinition(
+            name: 'test',
+            messageTemplate: '{msg}',
+            parameters: [new ParameterDefinition('msg', true, 'string')],
+            channels: [new ChannelDefinition('slack')],
+        );
+
+        $configLoader = $this->createStub(LinkConfigLoader::class);
+        $configLoader->method('getLink')->willReturn($link);
+
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects($this->exactly(2))
+            ->method('info')
+            ->with(
+                $this->logicalOr(
+                    $this->stringContains('Dispatching notification'),
+                    $this->stringContains('Successfully dispatched'),
+                ),
+                $this->isType('array'),
+            );
+
+        $service = new LinkNotificationService(
+            $configLoader,
+            new MessageBuilder(),
+            $this->createStub(ChatterInterface::class),
+            $this->createStub(TexterInterface::class),
+            $this->createStub(MailerInterface::class),
+            $this->createStub(HttpClientInterface::class),
+            $logger,
+            'https://hooks.slack.com/services/test/test/test',
+        );
+
+        $service->send('test', ['msg' => 'hello']);
     }
 }
