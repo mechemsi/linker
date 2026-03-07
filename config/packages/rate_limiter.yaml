@@ -1,0 +1,6 @@
+framework:
+    rate_limiter:
+        notify_limiter:
+            policy: 'sliding_window'
+            limit: 60
+            interval: '1 minute'

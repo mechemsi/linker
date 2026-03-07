@@ -15,14 +15,48 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\RateLimiter\LimiterInterface;
+use Symfony\Component\RateLimiter\RateLimit;
+use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 
 class NotifyControllerTest extends TestCase
 {
+    private function createAcceptedRateLimiter(): RateLimiterFactoryInterface
+    {
+        $rateLimit = new RateLimit(59, new \DateTimeImmutable('+1 minute'), true, 60);
+
+        $limiter = $this->createStub(LimiterInterface::class);
+        $limiter->method('consume')->willReturn($rateLimit);
+
+        $factory = $this->createStub(RateLimiterFactoryInterface::class);
+        $factory->method('create')->willReturn($limiter);
+
+        return $factory;
+    }
+
+    private function createRejectedRateLimiter(): RateLimiterFactoryInterface
+    {
+        $rateLimit = new RateLimit(0, new \DateTimeImmutable('+1 minute'), false, 60);
+
+        $limiter = $this->createStub(LimiterInterface::class);
+        $limiter->method('consume')->willReturn($rateLimit);
+
+        $factory = $this->createStub(RateLimiterFactoryInterface::class);
+        $factory->method('create')->willReturn($limiter);
+
+        return $factory;
+    }
+
     private function createController(
         LinkNotificationService $service,
         ?LoggerInterface $logger = null,
+        ?RateLimiterFactoryInterface $rateLimiter = null,
     ): NotifyController {
-        $controller = new NotifyController($service, $logger ?? $this->createStub(LoggerInterface::class));
+        $controller = new NotifyController(
+            $service,
+            $logger ?? $this->createStub(LoggerInterface::class),
+            $rateLimiter ?? $this->createAcceptedRateLimiter(),
+        );
 
         $container = $this->createStub(ContainerInterface::class);
         $container->method('has')->willReturn(false);
@@ -192,5 +226,50 @@ class NotifyControllerTest extends TestCase
         $response = $controller('my-link', $request);
 
         $this->assertSame(Response::HTTP_OK, $response->getStatusCode());
+    }
+
+    #[Test]
+    public function rateLimitExceededReturns429(): void
+    {
+        $service = $this->createStub(LinkNotificationService::class);
+
+        $controller = $this->createController($service, null, $this->createRejectedRateLimiter());
+        $request = Request::create('/notify/test-link', 'GET', ['msg' => 'hello']);
+        $response = $controller('test-link', $request);
+
+        $this->assertSame(Response::HTTP_TOO_MANY_REQUESTS, $response->getStatusCode());
+
+        $data = json_decode((string) $response->getContent(), true);
+        $this->assertSame('error', $data['status']);
+        $this->assertStringContainsString('Rate limit exceeded', $data['message']);
+    }
+
+    #[Test]
+    public function rateLimitExceededDoesNotCallService(): void
+    {
+        $service = $this->createMock(LinkNotificationService::class);
+        $service->expects($this->never())->method('send');
+
+        $controller = $this->createController($service, null, $this->createRejectedRateLimiter());
+        $request = Request::create('/notify/test-link', 'GET', ['msg' => 'hello']);
+        $controller('test-link', $request);
+    }
+
+    #[Test]
+    public function rateLimitExceededIsLogged(): void
+    {
+        $service = $this->createStub(LinkNotificationService::class);
+
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects($this->once())
+            ->method('warning')
+            ->with(
+                $this->stringContains('Rate limit exceeded'),
+                $this->callback(static fn (array $ctx) => 'test-link' === $ctx['link']),
+            );
+
+        $controller = $this->createController($service, $logger, $this->createRejectedRateLimiter());
+        $request = Request::create('/notify/test-link', 'GET', ['msg' => 'hello']);
+        $controller('test-link', $request);
     }
 }
