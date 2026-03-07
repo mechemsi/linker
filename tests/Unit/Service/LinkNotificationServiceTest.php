@@ -636,6 +636,80 @@ class LinkNotificationServiceTest extends TestCase
     }
 
     #[Test]
+    public function emailSubjectSanitizesCrlfFromInterpolatedParams(): void
+    {
+        $link = new LinkDefinition(
+            name: 'test',
+            messageTemplate: 'Deployed {app}',
+            parameters: [new ParameterDefinition('app', true, 'string')],
+            channels: [new ChannelDefinition('email', [
+                'to' => 'team@example.com',
+                'subject' => 'Deploy: {app}',
+            ])],
+        );
+
+        $configLoader = $this->createStub(LinkConfigLoader::class);
+        $configLoader->method('getLink')->willReturn($link);
+
+        $mailer = $this->createMock(MailerInterface::class);
+        $mailer->expects($this->once())
+            ->method('send')
+            ->with($this->callback(static function (Email $email) {
+                return 'Deploy: evil Bcc: attacker@evil.com' === $email->getSubject();
+            }));
+
+        $service = new LinkNotificationService(
+            $configLoader,
+            new MessageBuilder(),
+            $this->createStub(ChatterInterface::class),
+            $this->createStub(TexterInterface::class),
+            $mailer,
+            $this->createStub(HttpClientInterface::class),
+            $this->createStub(LoggerInterface::class),
+            'https://hooks.slack.com/services/test/test/test',
+        );
+
+        $service->send('test', ['app' => "evil\r\nBcc: attacker@evil.com"]);
+    }
+
+    #[Test]
+    public function emailSubjectSanitizesLoneCrAndLf(): void
+    {
+        $link = new LinkDefinition(
+            name: 'test',
+            messageTemplate: 'Deployed {app}',
+            parameters: [new ParameterDefinition('app', true, 'string')],
+            channels: [new ChannelDefinition('email', [
+                'to' => 'team@example.com',
+                'subject' => 'Deploy: {app}',
+            ])],
+        );
+
+        $configLoader = $this->createStub(LinkConfigLoader::class);
+        $configLoader->method('getLink')->willReturn($link);
+
+        $mailer = $this->createMock(MailerInterface::class);
+        $mailer->expects($this->once())
+            ->method('send')
+            ->with($this->callback(static function (Email $email) {
+                return 'Deploy: line1 line2 line3' === $email->getSubject();
+            }));
+
+        $service = new LinkNotificationService(
+            $configLoader,
+            new MessageBuilder(),
+            $this->createStub(ChatterInterface::class),
+            $this->createStub(TexterInterface::class),
+            $mailer,
+            $this->createStub(HttpClientInterface::class),
+            $this->createStub(LoggerInterface::class),
+            'https://hooks.slack.com/services/test/test/test',
+        );
+
+        $service->send('test', ['app' => "line1\rline2\nline3"]);
+    }
+
+    #[Test]
     public function mixedTransportSuccessAndFailureAcrossDifferentTypes(): void
     {
         $link = new LinkDefinition(

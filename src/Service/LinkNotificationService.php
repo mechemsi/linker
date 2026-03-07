@@ -141,6 +141,7 @@ class LinkNotificationService
         $to = $channel->options['to'] ?? throw new \RuntimeException('Email channel requires "to" option.');
         $subject = $channel->options['subject'] ?? $message;
         $subject = $this->messageBuilder->interpolate($subject, $resolvedParams);
+        $subject = $this->sanitizeHeaderValue($subject);
 
         $email = (new Email())
             ->to($to)
@@ -148,5 +149,13 @@ class LinkNotificationService
             ->text($message);
 
         $this->mailer->send($email);
+    }
+
+    /**
+     * Strips CR/LF characters to prevent email header injection.
+     */
+    private function sanitizeHeaderValue(string $value): string
+    {
+        return str_replace(["\r\n", "\r", "\n"], ' ', $value);
     }
 }
