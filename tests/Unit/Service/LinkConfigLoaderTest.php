@@ -190,6 +190,83 @@ YAML);
     }
 
     #[Test]
+    public function itInvalidatesCacheWhenFileIsModified(): void
+    {
+        $filePath = $this->tmpDir . '/mutable.yaml';
+        file_put_contents($filePath, <<<'YAML'
+parameters: {}
+message_template: 'original'
+channels:
+    - transport: slack
+YAML);
+
+        $loader = new LinkConfigLoader($this->tmpDir);
+        $link = $loader->getLink('mutable');
+        $this->assertSame('original', $link->messageTemplate);
+
+        // Advance mtime by 1 second to ensure change is detected
+        sleep(1);
+        file_put_contents($filePath, <<<'YAML'
+parameters: {}
+message_template: 'updated'
+channels:
+    - transport: slack
+YAML);
+
+        $link = $loader->getLink('mutable');
+        $this->assertSame('updated', $link->messageTemplate);
+    }
+
+    #[Test]
+    public function itInvalidatesCacheWhenFileIsAdded(): void
+    {
+        file_put_contents($this->tmpDir . '/first.yaml', <<<'YAML'
+parameters: {}
+message_template: 'first'
+channels:
+    - transport: slack
+YAML);
+
+        $loader = new LinkConfigLoader($this->tmpDir);
+        $this->assertCount(1, $loader->getAllLinks());
+
+        file_put_contents($this->tmpDir . '/second.yaml', <<<'YAML'
+parameters: {}
+message_template: 'second'
+channels:
+    - transport: slack
+YAML);
+
+        $this->assertCount(2, $loader->getAllLinks());
+    }
+
+    #[Test]
+    public function itInvalidatesCacheWhenFileIsRemoved(): void
+    {
+        file_put_contents($this->tmpDir . '/one.yaml', <<<'YAML'
+parameters: {}
+message_template: 'one'
+channels:
+    - transport: slack
+YAML);
+        file_put_contents($this->tmpDir . '/two.yaml', <<<'YAML'
+parameters: {}
+message_template: 'two'
+channels:
+    - transport: slack
+YAML);
+
+        $loader = new LinkConfigLoader($this->tmpDir);
+        $this->assertCount(2, $loader->getAllLinks());
+
+        unlink($this->tmpDir . '/two.yaml');
+
+        $this->assertCount(1, $loader->getAllLinks());
+        $this->assertTrue($loader->hasLink('one'));
+        $this->assertFalse($loader->hasLink('two'));
+    }
+
+    #[Test]
     public function itThrowsOnMissingMessageTemplate(): void
     {
         file_put_contents($this->tmpDir . '/bad.yaml', <<<'YAML'

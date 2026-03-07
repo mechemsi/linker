@@ -16,6 +16,10 @@ class LinkConfigLoader
     /** @var array<string, LinkDefinition>|null */
     private ?array $links = null;
 
+    private int $cachedMaxMtime = 0;
+
+    private int $cachedFileCount = 0;
+
     public function __construct(
         private readonly string $linksDirectory,
     ) {
@@ -50,7 +54,7 @@ class LinkConfigLoader
      */
     private function loadAll(): array
     {
-        if (null !== $this->links) {
+        if (null !== $this->links && !$this->hasConfigChanged()) {
             return $this->links;
         }
 
@@ -66,14 +70,49 @@ class LinkConfigLoader
             return $this->links;
         }
 
+        $maxMtime = 0;
         foreach ($files as $file) {
+            $mtime = filemtime($file);
+            if (false !== $mtime && $mtime > $maxMtime) {
+                $maxMtime = $mtime;
+            }
+
             $name = basename($file, '.yaml');
             $data = Yaml::parseFile($file);
 
             $this->links[$name] = $this->parseLink($name, $data);
         }
 
+        $this->cachedMaxMtime = $maxMtime;
+        $this->cachedFileCount = \count($files);
+
         return $this->links;
+    }
+
+    private function hasConfigChanged(): bool
+    {
+        if (!is_dir($this->linksDirectory)) {
+            return $this->cachedFileCount > 0;
+        }
+
+        $files = glob($this->linksDirectory . '/*.yaml');
+
+        if (false === $files) {
+            return $this->cachedFileCount > 0;
+        }
+
+        if (\count($files) !== $this->cachedFileCount) {
+            return true;
+        }
+
+        foreach ($files as $file) {
+            $mtime = filemtime($file);
+            if (false !== $mtime && $mtime > $this->cachedMaxMtime) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private const array SUPPORTED_TRANSPORTS = [
