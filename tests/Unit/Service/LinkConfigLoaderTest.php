@@ -277,6 +277,187 @@ YAML);
     }
 
     #[Test]
+    public function itThrowsOnInvalidEmailAddress(): void
+    {
+        file_put_contents($this->tmpDir . '/bad.yaml', <<<'YAML'
+parameters: {}
+message_template: 'test'
+channels:
+    - transport: email
+      options:
+          to: 'not-an-email'
+          subject: 'Alert'
+YAML);
+
+        $loader = new LinkConfigLoader($this->tmpDir);
+
+        try {
+            $loader->getLink('bad');
+            $this->fail('Expected InvalidLinkConfigException');
+        } catch (InvalidLinkConfigException $e) {
+            $this->assertCount(1, $e->getErrors());
+            $this->assertStringContainsString('invalid email address', $e->getErrors()[0]);
+            $this->assertStringContainsString('not-an-email', $e->getErrors()[0]);
+        }
+    }
+
+    #[Test]
+    public function itThrowsOnMissingEmailTo(): void
+    {
+        file_put_contents($this->tmpDir . '/bad.yaml', <<<'YAML'
+parameters: {}
+message_template: 'test'
+channels:
+    - transport: email
+      options:
+          subject: 'Alert'
+YAML);
+
+        $loader = new LinkConfigLoader($this->tmpDir);
+
+        try {
+            $loader->getLink('bad');
+            $this->fail('Expected InvalidLinkConfigException');
+        } catch (InvalidLinkConfigException $e) {
+            $this->assertCount(1, $e->getErrors());
+            $this->assertStringContainsString('missing required "to" option', $e->getErrors()[0]);
+        }
+    }
+
+    #[Test]
+    public function itThrowsOnEmailWithoutOptions(): void
+    {
+        file_put_contents($this->tmpDir . '/bad.yaml', <<<'YAML'
+parameters: {}
+message_template: 'test'
+channels:
+    - transport: email
+YAML);
+
+        $loader = new LinkConfigLoader($this->tmpDir);
+
+        try {
+            $loader->getLink('bad');
+            $this->fail('Expected InvalidLinkConfigException');
+        } catch (InvalidLinkConfigException $e) {
+            $this->assertCount(1, $e->getErrors());
+            $this->assertStringContainsString('email', $e->getErrors()[0]);
+            $this->assertStringContainsString('missing required "to" option', $e->getErrors()[0]);
+        }
+    }
+
+    #[Test]
+    public function itAcceptsValidEmailAddress(): void
+    {
+        file_put_contents($this->tmpDir . '/good.yaml', <<<'YAML'
+parameters: {}
+message_template: 'test'
+channels:
+    - transport: email
+      options:
+          to: 'team@example.com'
+          subject: 'Alert'
+YAML);
+
+        $loader = new LinkConfigLoader($this->tmpDir);
+        $link = $loader->getLink('good');
+
+        $this->assertSame('team@example.com', $link->channels[0]->options['to']);
+    }
+
+    #[Test]
+    public function itThrowsOnInvalidPhoneNumber(): void
+    {
+        file_put_contents($this->tmpDir . '/bad.yaml', <<<'YAML'
+parameters: {}
+message_template: 'test'
+channels:
+    - transport: sms
+      options:
+          to: '12345'
+YAML);
+
+        $loader = new LinkConfigLoader($this->tmpDir);
+
+        try {
+            $loader->getLink('bad');
+            $this->fail('Expected InvalidLinkConfigException');
+        } catch (InvalidLinkConfigException $e) {
+            $this->assertCount(1, $e->getErrors());
+            $this->assertStringContainsString('invalid phone number', $e->getErrors()[0]);
+            $this->assertStringContainsString('E.164', $e->getErrors()[0]);
+        }
+    }
+
+    #[Test]
+    public function itThrowsOnMissingSmsTo(): void
+    {
+        file_put_contents($this->tmpDir . '/bad.yaml', <<<'YAML'
+parameters: {}
+message_template: 'test'
+channels:
+    - transport: sms
+YAML);
+
+        $loader = new LinkConfigLoader($this->tmpDir);
+
+        try {
+            $loader->getLink('bad');
+            $this->fail('Expected InvalidLinkConfigException');
+        } catch (InvalidLinkConfigException $e) {
+            $this->assertCount(1, $e->getErrors());
+            $this->assertStringContainsString('sms', $e->getErrors()[0]);
+            $this->assertStringContainsString('missing required "to" option', $e->getErrors()[0]);
+        }
+    }
+
+    #[Test]
+    public function itAcceptsValidE164PhoneNumber(): void
+    {
+        file_put_contents($this->tmpDir . '/good.yaml', <<<'YAML'
+parameters: {}
+message_template: 'test'
+channels:
+    - transport: sms
+      options:
+          to: '+1234567890'
+YAML);
+
+        $loader = new LinkConfigLoader($this->tmpDir);
+        $link = $loader->getLink('good');
+
+        $this->assertSame('+1234567890', $link->channels[0]->options['to']);
+    }
+
+    #[Test]
+    public function itCollectsMultipleChannelOptionErrors(): void
+    {
+        file_put_contents($this->tmpDir . '/bad.yaml', <<<'YAML'
+parameters: {}
+message_template: 'test'
+channels:
+    - transport: email
+      options:
+          to: 'bad-email'
+          subject: 'Alert'
+    - transport: sms
+      options:
+          to: 'bad-phone'
+YAML);
+
+        $loader = new LinkConfigLoader($this->tmpDir);
+
+        try {
+            $loader->getLink('bad');
+            $this->fail('Expected InvalidLinkConfigException');
+        } catch (InvalidLinkConfigException $e) {
+            $this->assertCount(2, $e->getErrors());
+            $this->assertStringContainsString('invalid email', $e->getErrors()[0]);
+            $this->assertStringContainsString('invalid phone', $e->getErrors()[1]);
+        }
+    }
+
+    #[Test]
     public function itThrowsOnUndefinedTemplatePlaceholder(): void
     {
         file_put_contents($this->tmpDir . '/bad.yaml', <<<'YAML'

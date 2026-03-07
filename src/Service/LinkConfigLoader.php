@@ -121,6 +121,42 @@ class LinkConfigLoader
     }
 
     /**
+     * Validates transport-specific channel options (email recipients, phone numbers).
+     *
+     * @param array<string, mixed> $channelConfig
+     * @param string[]             $errors
+     */
+    private function validateChannelOptions(int $index, array $channelConfig, array &$errors): void
+    {
+        $transport = $channelConfig['transport'];
+        $options = $channelConfig['options'] ?? [];
+
+        if ('email' === $transport) {
+            if (!isset($options['to']) || !\is_string($options['to'])) {
+                $errors[] = \sprintf('Channel at index %d (email) is missing required "to" option', $index);
+            } elseif (false === filter_var($options['to'], \FILTER_VALIDATE_EMAIL)) {
+                $errors[] = \sprintf(
+                    'Channel at index %d (email) has invalid email address "%s"',
+                    $index,
+                    $options['to'],
+                );
+            }
+        }
+
+        if ('sms' === $transport) {
+            if (!isset($options['to']) || !\is_string($options['to'])) {
+                $errors[] = \sprintf('Channel at index %d (sms) is missing required "to" option', $index);
+            } elseif (!preg_match('/^\+[1-9]\d{6,14}$/', $options['to'])) {
+                $errors[] = \sprintf(
+                    'Channel at index %d (sms) has invalid phone number "%s" (must be E.164 format, e.g. +1234567890)',
+                    $index,
+                    $options['to'],
+                );
+            }
+        }
+    }
+
+    /**
      * Validates that all {placeholders} in the template have matching parameter definitions.
      *
      * @param array<string, mixed> $parameters
@@ -174,6 +210,8 @@ class LinkConfigLoader
                         $channelConfig['transport'],
                         implode(', ', self::SUPPORTED_TRANSPORTS),
                     );
+                } else {
+                    $this->validateChannelOptions($index, $channelConfig, $errors);
                 }
             }
         }
