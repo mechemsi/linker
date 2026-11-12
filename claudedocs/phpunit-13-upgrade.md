@@ -1,6 +1,6 @@
 # PHPUnit 13 upgrade
 
-Updated `phpunit/phpunit` from 12.5.8 to 13.4.6 in composer.lock and raised the manifest constraint to ^13.4.6. Updated the README testing version.
+Updated `phpunit/phpunit` from 12.5.8 to 13.4.6 in composer.lock and raised the manifest constraint to ^13.4.6. Updated the readme testing version.
 
 Reviewed the official [PHPUnit 13 upgrade guidance](https://phpunit.de/announcements/phpunit-13.html), [13.0 changelog](https://github.com/sebastianbergmann/phpunit/blob/13.0.0/ChangeLog-13.0.md), the 13.1 through 13.4 changelogs, and [current deprecations](https://github.com/sebastianbergmann/phpunit/blob/13.4.6/DEPRECATIONS.md).
 
