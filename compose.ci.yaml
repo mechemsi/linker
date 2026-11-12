@@ -8,8 +8,6 @@ services:
     depends_on:
       database:
         condition: service_healthy
-    environment:
-      MERCURE_EXTRA_DIRECTIVES: demo
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:2019/metrics"]
       start_period: 120s
