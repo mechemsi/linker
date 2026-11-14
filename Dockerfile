@@ -97,7 +97,7 @@ RUN chmod +x bin/console
 RUN printf '%s\n' \
 	'APP_ENV=prod' \
 	'APP_SECRET=change-me-in-production' \
-	'DATABASE_URL=mysql://app:app@database:3306/app?serverVersion=8.0&charset=utf8mb4' \
+	'DATABASE_URL=mysql://app:app@database:3306/app?serverVersion=8.4&charset=utf8mb4' \
 	'SLACK_DSN=null://null' \
 	'SLACK_WEBHOOK_URL=' \
 	'TELEGRAM_DSN=null://null' \
