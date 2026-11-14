@@ -2,7 +2,7 @@ doctrine:
     dbal:
         url: '%env(resolve:DATABASE_URL)%'
         driver: 'pdo_mysql'
-        server_version: '8.0'
+        server_version: '8.4'
         profiling_collect_backtrace: '%kernel.debug%'
     orm:
         validate_xml_mapping: true
