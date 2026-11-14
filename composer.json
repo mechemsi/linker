@@ -15,7 +15,7 @@
         "symfony/console": "8.0.*",
         "symfony/discord-notifier": "8.0.*",
         "symfony/dotenv": "8.0.*",
-        "symfony/flex": "^2.10",
+        "symfony/flex": "^2.12",
         "symfony/framework-bundle": "8.0.*",
         "symfony/mailer": "8.0.*",
         "symfony/notifier": "8.0.*",
@@ -109,7 +109,7 @@
         "phpstan/phpstan-doctrine": "^2.0",
         "phpstan/phpstan-symfony": "^2.0",
         "phpunit/phpunit": "^13.4.6",
-        "squizlabs/php_codesniffer": "^4.0",
+        "squizlabs/php_codesniffer": "^4.0.4",
         "symfony/browser-kit": "8.0.*",
         "symfony/css-selector": "8.0.*"
     }
