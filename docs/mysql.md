@@ -35,7 +35,7 @@ If checks identify schema changes, ship those in a separate preparation PR on
 
    Resolve every error and review all warnings, including removed server options
    such as `default_authentication_plugin`, reserved words and nonstandard foreign
-   keys referencing partial or non-unique keys. Rebuild spatial indexes as
+   keys referencing partial or non-unique keys. Rebuild spatial indices as
    directed by the 8.4 upgrade guide if any exist. Do not disable foreign key
    checks to force the upgrade through.
 4. In an administrator SQL session, inspect existing authentication plugins:
