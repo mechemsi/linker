@@ -1,4 +1,4 @@
-<?php  //[STAMP] 3c368be14164efeb7f9d76f567f12f0d
+<?php  //[STAMP] c41d9c8425fd2171ea5318418106ba7c
 // phpcs:ignoreFile
 namespace App\Tests\Support\_generated;
 
@@ -537,9 +537,9 @@ trait FunctionalTesterActions
      *      'checkbox1' => true,
      *      // ...
      * ];
-     * $I->submitForm('//form[@id=my-form]', string $form, 'submitButton');
+     * $I->submitForm('//form[@id=my-form]', $form, 'submitButton');
      * // $I->amOnPage('/path/to/form-page') may be needed
-     * $I->seeInFormFields('//form[@id=my-form]', string $form);
+     * $I->seeInFormFields('//form[@id=my-form]', $form);
      * ```
      * @see \Codeception\Lib\InnerBrowser::seeInFormFields()
      */
@@ -1409,6 +1409,19 @@ trait FunctionalTesterActions
      */
     public function moveBack(int $numberOfSteps = 1): void {
         $this->getScenario()->runStep(new \Codeception\Step\Action('moveBack', func_get_args()));
+    }
+
+ 
+    /**
+     * [!] Method is generated. Documentation taken from corresponding module.
+     *
+     * Moves forward in history.
+     *
+     * @param int $numberOfSteps (default value 1)
+     * @see \Codeception\Lib\InnerBrowser::moveForward()
+     */
+    public function moveForward(int $numberOfSteps = 1): void {
+        $this->getScenario()->runStep(new \Codeception\Step\Action('moveForward', func_get_args()));
     }
 
  

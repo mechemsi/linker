@@ -364,7 +364,7 @@ tests/
 - MySQL 8
 - Symfony Notifier (Slack, Telegram, Discord, Twilio)
 - Symfony Mailer
-- PHPUnit 12 + Codeception 5
+- PHPUnit 13 + Codeception 5
 - PHPStan + PHPCS + PHP-CS-Fixer
 
 ## License

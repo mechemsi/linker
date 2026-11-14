@@ -1,4 +1,4 @@
-<?php  //[STAMP] 3c4e8bba1d6b3108d42c48fe585a2ef7
+<?php  //[STAMP] 2a7aefd2cf4b81a509df7c868e8fa2b1
 // phpcs:ignoreFile
 namespace App\Tests\Support\_generated;
 
@@ -1656,9 +1656,9 @@ trait AcceptanceTesterActions
      *      'checkbox1' => true,
      *      // ...
      * ];
-     * $I->submitForm('//form[@id=my-form]', string $form, 'submitButton');
+     * $I->submitForm('//form[@id=my-form]', $form, 'submitButton');
      * // $I->amOnPage('/path/to/form-page') may be needed
-     * $I->seeInFormFields('//form[@id=my-form]', string $form);
+     * $I->seeInFormFields('//form[@id=my-form]', $form);
      * ```
      * @see \Codeception\Lib\InnerBrowser::seeInFormFields()
      */
@@ -1717,9 +1717,9 @@ trait AcceptanceTesterActions
      *      'checkbox1' => true,
      *      // ...
      * ];
-     * $I->submitForm('//form[@id=my-form]', string $form, 'submitButton');
+     * $I->submitForm('//form[@id=my-form]', $form, 'submitButton');
      * // $I->amOnPage('/path/to/form-page') may be needed
-     * $I->seeInFormFields('//form[@id=my-form]', string $form);
+     * $I->seeInFormFields('//form[@id=my-form]', $form);
      * ```
      * @see \Codeception\Lib\InnerBrowser::seeInFormFields()
      */
@@ -1778,9 +1778,9 @@ trait AcceptanceTesterActions
      *      'checkbox1' => true,
      *      // ...
      * ];
-     * $I->submitForm('//form[@id=my-form]', string $form, 'submitButton');
+     * $I->submitForm('//form[@id=my-form]', $form, 'submitButton');
      * // $I->amOnPage('/path/to/form-page') may be needed
-     * $I->seeInFormFields('//form[@id=my-form]', string $form);
+     * $I->seeInFormFields('//form[@id=my-form]', $form);
      * ```
      * @see \Codeception\Lib\InnerBrowser::seeInFormFields()
      */
@@ -4171,6 +4171,45 @@ trait AcceptanceTesterActions
         $retryNum      = $this->retryNum ?? 1;
         $retryInterval = $this->retryInterval ?? 200;
         return $this->getScenario()->runStep(new \Codeception\Step\Retry('moveBack', func_get_args(), $retryNum, $retryInterval));
+    }
+
+ 
+    /**
+     * [!] Method is generated. Documentation taken from corresponding module.
+     *
+     * Moves forward in history.
+     *
+     * @param int $numberOfSteps (default value 1)
+     * @see \Codeception\Lib\InnerBrowser::moveForward()
+     */
+    public function moveForward(int $numberOfSteps = 1): void {
+        $this->getScenario()->runStep(new \Codeception\Step\Action('moveForward', func_get_args()));
+    }
+    /**
+     * [!] Method is generated. Documentation taken from corresponding module.
+     *
+     * [!] Test won't be stopped on fail. Error won't be logged 
+     * Moves forward in history.
+     *
+     * @param int $numberOfSteps (default value 1)
+     * @see \Codeception\Lib\InnerBrowser::moveForward()
+     */
+    public function tryToMoveForward(int $numberOfSteps = 1): bool {
+        return $this->getScenario()->runStep(new \Codeception\Step\TryTo('moveForward', func_get_args()));
+    }
+    /**
+     * [!] Method is generated.
+     *
+     * * Executes moveForward and retries on failure.
+     *
+     * Retry number and interval set by $I->retry();
+     *
+     * @see \Codeception\Lib\InnerBrowser::moveForward()
+     */
+    public function retryMoveForward(int $numberOfSteps = 1) {
+        $retryNum      = $this->retryNum ?? 1;
+        $retryInterval = $this->retryInterval ?? 200;
+        return $this->getScenario()->runStep(new \Codeception\Step\Retry('moveForward', func_get_args(), $retryNum, $retryInterval));
     }
 
  
