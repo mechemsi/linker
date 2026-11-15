@@ -1,6 +1,6 @@
 # PHPUnit 13 upgrade
 
-The supplied repository already declares `phpunit/phpunit` ^13.4.6 and locks 13.4.6. README already lists PHPUnit 13. Re-ran the scoped Composer update with --no-scripts; no package versions changed.
+The supplied repository already declares `phpunit/phpunit` ^13.4.6 and locks 13.4.6. Readme already lists PHPUnit 13. Re-ran the scoped Composer update with --no-scripts; no package versions changed.
 
 Reviewed the official [PHPUnit 13 upgrade guidance](https://phpunit.de/announcements/phpunit-13.html), [13.0 changelog](https://github.com/sebastianbergmann/phpunit/blob/13.0.0/ChangeLog-13.0.md), the 13.1 through 13.4 changelogs, and [current deprecations](https://github.com/sebastianbergmann/phpunit/blob/13.4.6/DEPRECATIONS.md).
 
@@ -8,7 +8,7 @@ Reviewed the official [PHPUnit 13 upgrade guidance](https://phpunit.de/announcem
 
 PHPUnit 13.4.6 requires PHP >=8.4.1. The project's >=8.4.17 requirement and PHP 8.4 Docker image already satisfy this. Reviewed all three PHPUnit test classes, the launcher, XML configuration, Composer scripts, and CI invocations. No removed assertions, attributes, extension APIs, or deprecated any() matchers are used. All with() expectations already use explicit invocation counts. No test or application changes were necessary. The existing expectExceptionMessage() call is only soft-deprecated and still works.
 
-Compatible companion versions already present in the supplied lock file (historical changes below are recorded by the existing report, not independently verified against a baseline):
+Compatible companion versions already present in the supplied lockfile (historical changes below are recorded by the existing report, not independently verified against a baseline):
 
 - codeception/codeception 5.3.4 to 5.3.7, lib-asserts 3.1.0 to 3.2.0, lib-innerbrowser 4.0.8 to 4.1.1, lib-web 2.0.1 to 2.1.1, and stub 4.2.1 to 4.3.0: the old versions exclude PHPUnit 13.
 - doctrine/deprecations is locked at 1.2.0 and permits PHPUnit 13.
