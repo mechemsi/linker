@@ -12,18 +12,18 @@
         "doctrine/doctrine-bundle": "^3.2.2",
         "doctrine/doctrine-migrations-bundle": "^4.0",
         "doctrine/orm": "^3.6.2",
-        "symfony/console": "8.0.*",
-        "symfony/discord-notifier": "8.0.*",
-        "symfony/dotenv": "8.0.*",
+        "symfony/console": "8.1.*",
+        "symfony/discord-notifier": "8.1.*",
+        "symfony/dotenv": "8.1.*",
         "symfony/flex": "^2.12",
-        "symfony/framework-bundle": "8.0.*",
-        "symfony/mailer": "8.0.*",
-        "symfony/notifier": "8.0.*",
-        "symfony/runtime": "8.0.*",
-        "symfony/slack-notifier": "8.0.*",
-        "symfony/telegram-notifier": "8.0.*",
-        "symfony/twilio-notifier": "8.0.*",
-        "symfony/yaml": "8.0.*"
+        "symfony/framework-bundle": "8.1.*",
+        "symfony/mailer": "8.1.*",
+        "symfony/notifier": "8.1.*",
+        "symfony/runtime": "8.1.*",
+        "symfony/slack-notifier": "8.1.*",
+        "symfony/telegram-notifier": "8.1.*",
+        "symfony/twilio-notifier": "8.1.*",
+        "symfony/yaml": "8.1.*"
     },
     "config": {
         "allow-plugins": {
@@ -92,7 +92,7 @@
     "extra": {
         "symfony": {
             "allow-contrib": false,
-            "require": "8.0.*",
+            "require": "8.1.*",
             "docker": true
         }
     },
@@ -110,7 +110,7 @@
         "phpstan/phpstan-symfony": "^2.0",
         "phpunit/phpunit": "^13.4.6",
         "squizlabs/php_codesniffer": "^4.0.4",
-        "symfony/browser-kit": "8.0.*",
-        "symfony/css-selector": "8.0.*"
+        "symfony/browser-kit": "8.1.*",
+        "symfony/css-selector": "8.1.*"
     }
 }
