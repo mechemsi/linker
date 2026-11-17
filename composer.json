@@ -11,7 +11,7 @@
         "ext-iconv": "*",
         "doctrine/doctrine-bundle": "^3.2.2",
         "doctrine/doctrine-migrations-bundle": "^4.0",
-        "doctrine/orm": "^3.6.2",
+        "doctrine/orm": "^3.7.7",
         "symfony/console": "8.1.*",
         "symfony/discord-notifier": "8.1.*",
         "symfony/dotenv": "8.1.*",
