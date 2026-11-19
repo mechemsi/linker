@@ -104,7 +104,7 @@
         "codeception/module-phpbrowser": ">=4",
         "codeception/module-rest": "^3.4.3",
         "codeception/module-symfony": "^3.8",
-        "friendsofphp/php-cs-fixer": "^3.95.27",
+        "friendsofphp/php-cs-fixer": "^3.95.31",
         "phpstan/phpstan": "^2.3.6",
         "phpstan/phpstan-doctrine": "^2.0",
         "phpstan/phpstan-symfony": "^2.0",
