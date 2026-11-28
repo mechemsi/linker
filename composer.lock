@@ -2620,16 +2620,16 @@
         },
         {
             "name": "symfony/framework-bundle",
-            "version": "v8.1.11",
+            "version": "v8.1.12",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/framework-bundle.git",
-                "reference": "a37335a059fca8e4c8443497b45c04e8c0eb7360"
+                "reference": "463fe04b05841bbd22af636bf968df16fd2835ec"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/framework-bundle/zipball/a37335a059fca8e4c8443497b45c04e8c0eb7360",
-                "reference": "a37335a059fca8e4c8443497b45c04e8c0eb7360",
+                "url": "https://api.github.com/repos/symfony/framework-bundle/zipball/463fe04b05841bbd22af636bf968df16fd2835ec",
+                "reference": "463fe04b05841bbd22af636bf968df16fd2835ec",
                 "shasum": ""
             },
             "require": {
@@ -2684,7 +2684,7 @@
                 "symfony/expression-language": "^7.4|^8.0",
                 "symfony/form": "^7.4|^8.0",
                 "symfony/html-sanitizer": "^7.4|^8.0",
-                "symfony/http-client": "^7.4|^8.0",
+                "symfony/http-client": "^7.4.23|^8.1.11",
                 "symfony/json-streamer": "^7.4|^8.0",
                 "symfony/lock": "^7.4|^8.0",
                 "symfony/mailer": "^7.4|^8.0",
@@ -2739,7 +2739,7 @@
             "description": "Provides a tight integration between Symfony components and the Symfony full-stack framework",
             "homepage": "https://symfony.com",
             "support": {
-                "source": "https://github.com/symfony/framework-bundle/tree/v8.1.11"
+                "source": "https://github.com/symfony/framework-bundle/tree/v8.1.12"
             },
             "funding": [
                 {
@@ -2759,7 +2759,8 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-11-04T08:39:20+00:00"
+            "time": "2026-11-25T08:05:05+00:00",
+            "published-time": "2026-11-25T09:29:33+00:00"
         },
         {
             "name": "symfony/http-client",
